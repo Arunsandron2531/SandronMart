@@ -21,19 +21,20 @@ function escapeLike(term) {
 }
 
 function listActiveProducts({ search, category }) {
+  const term = (search || '').trim().slice(0, 100);
   const where = [];
   const params = [];
 
-  if (category && PRODUCT_CATEGORIES.includes(category)) {
+  if (category && category !== 'All Categories' && PRODUCT_CATEGORIES.includes(category)) {
     where.push('category = ?');
     params.push(category);
   }
 
-  if (search) {
+  if (term) {
     where.push(
       `(name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR category LIKE ? ESCAPE '\\')`
     );
-    const like = `%${escapeLike(search)}%`;
+    const like = `%${escapeLike(term)}%`;
     params.push(like, like, like);
   }
 

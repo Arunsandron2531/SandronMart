@@ -335,11 +335,104 @@ async function run() {
   r = await buyer.request('GET', '/buyer/products?search=zzznoresults');
   assert(r.text.includes('No products found'), 'search with no matches shows empty state');
 
-  r = await buyer.request('GET', '/buyer/products?category=' + encodeURIComponent('Fertilizers'));
-  assert(r.text.includes('No products found'), 'category with no products shows empty state');
+  /* ===== Search: generic across ALL categories ===== */
 
-  r = await buyer.request('GET', '/buyer/products?category=Junk');
-  assert(r.status === 200 && r.text.includes('Monstera Albo'), 'unknown category falls back to all products', `status=${r.status}`);
+  const extraProducts = [
+    ['Tomato Plant', 'Grow juicy tomatoes at home.', 'Herbs & Vegetables', '4.25', '20'],
+    ['Money Plant', 'A lucky easy-care indoor vine.', 'Indoor Plants', '6.5', '15'],
+    ['Terracotta Pot', 'A sturdy clay pot for patios.', 'Pots & Planters', '12', '8'],
+    ['Organic Compost', 'Feed your vegetables naturally.', 'Fertilizers', '9.99', '30'],
+    ['Pea Seeds', 'Sweet green peas for your patch.', 'Seeds', '2.5', '40'],
+  ];
+  for (const [name, description, category, price, stock] of extraProducts) {
+    r = await seller.request('POST', '/seller/products', { name, description, category, price, stock });
+    assert(r.status === 302 && (r.location || '').includes('created=1'), `seller creates ${name} for search tests`, `status=${r.status}`);
+  }
+
+  const perCategory = {
+    'Indoor Plants': ['Monstera Albo', 'Money Plant'],
+    'Outdoor Plants': ['Rose Bush'],
+    'Seeds': ['Pea Seeds'],
+    'Pots & Planters': ['Terracotta Pot'],
+    'Gardening Tools': ['Garden Trowel'],
+    'Fertilizers': ['Organic Compost'],
+    'Herbs & Vegetables': ['Tomato Plant'],
+  };
+  const allNames = Object.values(perCategory).flat();
+
+  for (const [category, present] of Object.entries(perCategory)) {
+    r = await buyer.request('GET', '/buyer/products?category=' + encodeURIComponent(category));
+    present.forEach((name) => assert(r.text.includes(name), `category filter shows ${name} in ${category}`));
+    allNames.filter((name) => !present.includes(name)).forEach((name) =>
+      assert(!r.text.includes(name), `category filter excludes ${name} from ${category}`)
+    );
+  }
+
+  r = await buyer.request('GET', '/buyer/products?search=' + encodeURIComponent('Terracotta Pot'));
+  assert(r.text.includes('Terracotta Pot') && !r.text.includes('Monstera Albo') && !r.text.includes('Rose Bush') && !r.text.includes('Pea Seeds'), 'search matches full product name');
+
+  r = await buyer.request('GET', '/buyer/products?search=' + encodeURIComponent('terrac'));
+  assert(r.text.includes('Terracotta Pot') && !r.text.includes('Monstera Albo'), 'search matches partial product name');
+
+  r = await buyer.request('GET', '/buyer/products?search=' + encodeURIComponent('tom'));
+  assert(r.text.includes('Tomato Plant') && !r.text.includes('Garden Trowel') && !r.text.includes('Monstera Albo'), 'search "tom" -> Tomato Plant');
+
+  r = await buyer.request('GET', '/buyer/products?search=' + encodeURIComponent('money'));
+  assert(r.text.includes('Money Plant') && !r.text.includes('Rose Bush'), 'search "money" -> Money Plant');
+
+  r = await buyer.request('GET', '/buyer/products?search=' + encodeURIComponent('pot'));
+  assert(r.text.includes('Terracotta Pot') && !r.text.includes('Rose Bush') && !r.text.includes('Garden Trowel'), 'search "pot" -> Terracotta Pot');
+
+  r = await buyer.request('GET', '/buyer/products?search=' + encodeURIComponent('juicy'));
+  assert(r.text.includes('Tomato Plant') && !r.text.includes('Monstera Albo'), 'search matches description keyword');
+
+  r = await buyer.request('GET', '/buyer/products?search=' + encodeURIComponent('clay'));
+  assert(r.text.includes('Terracotta Pot'), 'search matches description "clay"');
+
+  r = await buyer.request('GET', '/buyer/products?search=' + encodeURIComponent('Seeds'));
+  assert(r.text.includes('Pea Seeds') && !r.text.includes('Tomato Plant'), 'search term matches category name');
+
+  r = await buyer.request('GET', '/buyer/products?search=' + encodeURIComponent('Fertilizers'));
+  assert(r.text.includes('Organic Compost') && !r.text.includes('Rose Bush'), 'search term matches category name (Fertilizers)');
+
+  r = await buyer.request('GET', '/buyer/products?search=ROSE');
+  assert(r.text.includes('Rose Bush') && !r.text.includes('Garden Trowel'), 'search is case-insensitive (ROSE)');
+
+  r = await buyer.request('GET', '/buyer/products?search=mOnEy');
+  assert(r.text.includes('Money Plant'), 'search is case-insensitive (mOnEy)');
+
+  r = await buyer.request('GET', '/buyer/products?search=%20%20rose%20%20');
+  assert(r.text.includes('Rose Bush') && !r.text.includes('Garden Trowel'), 'search trims leading and trailing spaces');
+
+  r = await buyer.request('GET', '/buyer/products?search=%20money%20&category=' + encodeURIComponent('Indoor Plants'));
+  assert(r.text.includes('Money Plant') && !r.text.includes('Monstera Albo'), 'trimmed search combines with category filter');
+
+  r = await buyer.request('GET', '/buyer/products?category=' + encodeURIComponent('All Categories'));
+  assert(r.status === 200 && allNames.every((name) => r.text.includes(name)), 'All Categories shows products from every category', `status=${r.status}`);
+
+  r = await buyer.request('GET', '/buyer/products?category=');
+  assert(allNames.every((name) => r.text.includes(name)), 'empty category shows products from every category');
+
+  r = await buyer.request('GET', '/buyer/products?category=' + encodeURIComponent('Seeds'));
+  assert(r.text.includes('Pea Seeds') && !r.text.includes('Tomato Plant') && !r.text.includes('Rose Bush'), 'empty search with category shows whole category');
+
+  r = await buyer.request('GET', '/buyer/products?category=' + encodeURIComponent('Herbs & Vegetables'));
+  assert(r.text.includes('Tomato Plant') && !r.text.includes('Pea Seeds'), 'Herbs & Vegetables filter matches');
+
+  r = await buyer.request('GET', '/buyer/products?search=plant&category=' + encodeURIComponent('Indoor Plants'));
+  assert(r.text.includes('Monstera Albo') && r.text.includes('Money Plant') && !r.text.includes('Garden Trowel'), 'search and category filter combine across matches');
+
+  r = await buyer.request('GET', '/buyer/products?search=rose&category=' + encodeURIComponent('Seeds'));
+  assert(r.text.includes('No products found'), 'search and category with no match shows empty state');
+
+  r = await buyer.request('GET', '/buyer/products?category=' + encodeURIComponent('Fertilizers'));
+  assert(r.text.includes('Organic Compost') && !r.text.includes('Garden Trowel'), 'category filter matches fertilizers');
+
+  r = await buyer.request('GET', '/buyer/products?search=rose&category=Junk');
+  assert(r.status === 200 && r.text.includes('Rose Bush') && !r.text.includes('Pea Seeds'), 'unknown category is ignored while search still applies', `status=${r.status}`);
+
+  r = await buyer.request('GET', '/buyer/products');
+  assert(r.text.includes('name="search"') && r.text.includes('name="category"') && r.text.includes('All Categories'), 'search form field names match backend params');
 
   r = await buyer.request('GET', `/buyer/products/${idMonstera}`);
   assert(r.status === 200 && r.text.includes('Monstera Albo'), 'buyer opens product detail', `status=${r.status}`);
@@ -576,7 +669,7 @@ async function run() {
   const samId = db.prepare("SELECT id FROM users WHERE email = 'sam@example.com'").get().id;
   const ownProducts = db.prepare('SELECT COUNT(*) AS c FROM products WHERE seller_id = ?').get(samId);
   const allProducts = db.prepare('SELECT COUNT(*) AS c FROM products').get();
-  assert(ownProducts.c === 3 && allProducts.c === 3, 'products scoped to owner seller in DB', `own=${ownProducts.c} all=${allProducts.c}`);
+  assert(ownProducts.c === 8 && allProducts.c === 8, 'products scoped to owner seller in DB', `own=${ownProducts.c} all=${allProducts.c}`);
   const deletedRow = db.prepare('SELECT COUNT(*) AS c FROM products WHERE id = ?').get(idTomato);
   assert(deletedRow.c === 0, 'deleted product removed from DB', `count=${deletedRow.c}`);
   const orphanProducts = db.prepare(
