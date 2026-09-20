@@ -3,6 +3,7 @@ const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
+const db = require('./config/db');
 
 const app = express();
 
@@ -39,12 +40,20 @@ app.use((req, res, next) => {
   res.locals.currentUser = req.session && req.session.userId
     ? { name: req.session.name, email: req.session.email, role: req.session.role }
     : null;
+  res.locals.cartCount = 0;
+  if (res.locals.currentUser && res.locals.currentUser.role === 'BUYER') {
+    const row = db.prepare(
+      'SELECT COALESCE(SUM(quantity), 0) AS count FROM cart_items WHERE buyer_id = ?'
+    ).get(req.session.userId);
+    res.locals.cartCount = row.count;
+  }
   next();
 });
 
 app.use('/', require('./routes/pages'));
 app.use('/', require('./routes/auth'));
 app.use('/', require('./routes/buyer'));
+app.use('/', require('./routes/cart'));
 app.use('/', require('./routes/products'));
 
 app.use((req, res) => {

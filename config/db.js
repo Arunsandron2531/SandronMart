@@ -41,4 +41,16 @@ db.exec(`
 
 db.exec('CREATE INDEX IF NOT EXISTS idx_products_seller_id ON products(seller_id);');
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS cart_items (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    buyer_id   INTEGER NOT NULL REFERENCES users(id),
+    product_id INTEGER NOT NULL REFERENCES products(id),
+    quantity   INTEGER NOT NULL CHECK (quantity >= 1),
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (buyer_id, product_id)
+  );
+`);
+
 module.exports = db;

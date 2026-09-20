@@ -971,6 +971,150 @@ select.input {
   margin-bottom: 12px;
 }
 
+/* ---------- Cart ---------- */
+
+.qty-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qty-field .qty-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.qty-input {
+  width: 90px;
+}
+
+.cart-list {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.cart-item {
+  background: var(--white);
+  border: 1px solid var(--green-100);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.cart-thumb {
+  width: 84px;
+  height: 84px;
+  flex: 0 0 84px;
+}
+
+.cart-image {
+  width: 100%;
+  height: 84px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: var(--green-100);
+  display: block;
+}
+
+.cart-image-fallback {
+  display: grid;
+  place-items: center;
+  font-size: 2.4rem;
+  color: var(--green-600);
+}
+
+.cart-info {
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+
+.cart-info .product-category {
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.cart-unit {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.cart-qty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qty-form {
+  display: inline;
+}
+
+.qty-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid var(--green-700);
+  background: var(--white);
+  color: var(--green-700);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.qty-btn:hover {
+  background: var(--green-100);
+}
+
+.qty-value {
+  min-width: 28px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.cart-subtotal {
+  font-weight: 800;
+  color: var(--green-700);
+  min-width: 90px;
+  text-align: right;
+}
+
+.cart-summary {
+  background: var(--white);
+  border: 1px solid var(--green-100);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 48px;
+}
+
+.cart-total {
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+
+.cart-total strong {
+  color: var(--green-700);
+  font-size: 1.4rem;
+}
+
+.cart-summary-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 /* ---------- Account ---------- */
 
 .account-card {
@@ -1045,5 +1189,14 @@ select.input {
   .filter-bar select.input,
   .filter-bar .btn {
     flex-basis: 100%;
+  }
+
+  .cart-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cart-subtotal {
+    text-align: left;
   }
 }

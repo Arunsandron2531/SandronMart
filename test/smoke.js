@@ -71,6 +71,32 @@ function extractProductId(html, productName) {
   return null;
 }
 
+function extractBuyerProductId(html, productName) {
+  const cards = html.split('class="product-card"');
+  for (const card of cards) {
+    if (card.includes(productName)) {
+      const match = card.match(/\/buyer\/products\/(\d+)/);
+      if (match) {
+        return Number(match[1]);
+      }
+    }
+  }
+  return null;
+}
+
+function extractCartItemId(html, productName) {
+  const rows = html.split('class="cart-item"');
+  for (const row of rows) {
+    if (row.includes(productName)) {
+      const match = row.match(/\/buyer\/cart\/(\d+)\/update/);
+      if (match) {
+        return Number(match[1]);
+      }
+    }
+  }
+  return null;
+}
+
 async function run() {
   server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
@@ -345,6 +371,192 @@ async function run() {
   assert(r.text.includes('href="/buyer/products"') && r.text.includes('href="/buyer/account"') && r.text.includes('href="/buyer/orders"'), 'dashboard cards link to buyer pages');
   assert(!r.text.includes('coming soon'), 'no coming-soon placeholders on buyer dashboard');
 
+  /* ===== Buyer Shopping Cart ===== */
+
+  r = await anon.request('GET', '/buyer/cart');
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'anonymous cart page redirects to login', `status=${r.status}`);
+  r = await anon.request('POST', '/buyer/cart/add', { product_id: '1', quantity: '1' });
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'anonymous cart add redirects to login', `status=${r.status}`);
+  r = await anon.request('POST', '/buyer/cart/1/update', { action: 'increase' });
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'anonymous cart update redirects to login', `status=${r.status}`);
+  r = await anon.request('POST', '/buyer/cart/1/remove', {});
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'anonymous cart remove redirects to login', `status=${r.status}`);
+
+  r = await seller.request('GET', '/buyer/cart');
+  assert(r.status === 403 && r.text.includes('403'), 'seller blocked from cart page (403)', `status=${r.status}`);
+  r = await seller.request('POST', '/buyer/cart/add', { product_id: String(idMonstera), quantity: '1' });
+  assert(r.status === 403 && r.text.includes('403'), 'seller blocked from adding to cart (403)', `status=${r.status}`);
+  r = await seller.request('POST', '/buyer/cart/1/update', { action: 'increase' });
+  assert(r.status === 403 && r.text.includes('403'), 'seller blocked from updating cart (403)', `status=${r.status}`);
+  r = await seller.request('POST', '/buyer/cart/1/remove', {});
+  assert(r.status === 403 && r.text.includes('403'), 'seller blocked from removing cart item (403)', `status=${r.status}`);
+
+  r = await buyer.request('GET', '/buyer/cart');
+  assert(r.status === 200 && r.text.includes('Your Cart'), 'buyer cart page renders', `status=${r.status}`);
+  assert(r.text.includes('Your cart is empty.'), 'empty cart message shown');
+  assert(r.text.includes('Continue Shopping') && r.text.includes('href="/buyer/products"'), 'empty cart has continue shopping link');
+
+  r = await buyer.request('GET', '/buyer/products');
+  const idRose = extractBuyerProductId(r.text, 'Rose Bush');
+  const idTrowel = extractBuyerProductId(r.text, 'Garden Trowel');
+  assert(idRose !== null && idTrowel !== null && idRose !== idMonstera, 'buyer product ids extracted', `rose=${idRose} trowel=${idTrowel}`);
+
+  r = await buyer.request('GET', `/buyer/products/${idMonstera}`);
+  assert(r.text.includes('action="/buyer/cart/add"') && r.text.includes('name="product_id"'), 'detail page has working add to cart form');
+
+  r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idMonstera), quantity: '2' });
+  assert(r.status === 302 && (r.location || '').includes('/buyer/cart?added=1'), 'buyer adds product to cart', `status=${r.status} loc=${r.location}`);
+
+  r = await buyer.request('GET', '/buyer/cart?added=1');
+  assert(r.text.includes('Product added to your cart.'), 'added success message shown');
+  assert(r.text.includes('Monstera Albo') && r.text.includes('Indoor Plants'), 'cart lists product with category');
+  assert(r.text.includes('$39.99') && r.text.includes('2'), 'cart shows unit price and quantity');
+  assert(r.text.includes('$79.98'), 'cart shows subtotal');
+  assert(r.text.includes('href="/buyer/cart"'), 'cart page has cart nav link');
+  assert(/\/buyer\/cart\/\d+\/remove/.test(r.text), 'cart items have remove buttons');
+
+  r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idMonstera), quantity: '1' });
+  assert(r.status === 302 && (r.location || '').includes('added=1'), 're-adding product merges cart row', `status=${r.status}`);
+  r = await buyer.request('GET', '/buyer/cart');
+  assert((r.text.match(/class="cart-item"/g) || []).length === 1, 'no duplicate cart rows for same product');
+  assert(r.text.includes('<span class="qty-value">3</span>'), 'merged quantity is 3');
+  assert(r.text.includes('$119.97'), 'merged subtotal shown');
+
+  r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idMonstera), quantity: '5' });
+  assert(r.status === 302 && (r.location || '').includes('stock=1'), 'add above stock rejected', `status=${r.status} loc=${r.location}`);
+  r = await buyer.request('GET', '/buyer/cart?stock=1');
+  assert(r.text.includes('Quantity cannot exceed available stock.'), 'stock limit error message shown');
+  assert(r.text.includes('<span class="qty-value">3</span>'), 'cart quantity unchanged after stock rejection');
+
+  r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idTrowel), quantity: '1' });
+  assert(r.status === 302 && (r.location || '').includes('stock=1'), 'out-of-stock product add rejected', `status=${r.status}`);
+  r = await buyer.request('GET', '/buyer/cart');
+  assert(!r.text.includes('Garden Trowel'), 'out-of-stock product not added to cart');
+
+  r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idRose), quantity: '2' });
+  assert(r.status === 302 && (r.location || '').includes('added=1'), 'buyer adds second product', `status=${r.status}`);
+
+  r = await buyer.request('GET', '/buyer/products');
+  assert(r.text.includes('Cart (5)'), 'header shows cart item count');
+
+  r = await buyer.request('GET', '/buyer/cart');
+  assert(r.text.includes('$159.95'), 'cart total sums all subtotals');
+
+  r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idRose), quantity: '10' });
+  assert(r.status === 302 && (r.location || '').includes('stock=1'), 'fresh add exceeding stock rejected', `status=${r.status}`);
+  r = await buyer.request('GET', '/buyer/cart');
+  assert(r.text.includes('$159.95'), 'cart unchanged after rejected over-stock add');
+
+  r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idMonstera), quantity: '0' });
+  assert(r.status === 302 && (r.location || '').includes('invalid=1'), 'zero quantity rejected', `status=${r.status}`);
+  r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idMonstera), quantity: '-1' });
+  assert(r.status === 302 && (r.location || '').includes('invalid=1'), 'negative quantity rejected', `status=${r.status}`);
+  r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idMonstera), quantity: 'abc' });
+  assert(r.status === 302 && (r.location || '').includes('invalid=1'), 'non-numeric quantity rejected', `status=${r.status}`);
+  r = await buyer.request('POST', '/buyer/cart/add', {});
+  assert(r.status === 302 && (r.location || '').includes('invalid=1'), 'missing product id rejected', `status=${r.status}`);
+  r = await buyer.request('POST', '/buyer/cart/add', { product_id: '999999', quantity: '1' });
+  assert(r.status === 302 && (r.location || '').includes('notfound=1'), 'missing product add rejected', `status=${r.status}`);
+  r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idTomato), quantity: '1' });
+  assert(r.status === 302 && (r.location || '').includes('notfound=1'), 'deleted product add rejected', `status=${r.status}`);
+  r = await buyer.request('GET', '/buyer/cart?notfound=1');
+  assert(r.text.includes('That product is no longer available.'), 'product not found message shown');
+  assert(r.text.includes('$159.95'), 'cart intact after failed adds');
+
+  r = await buyer.request('GET', '/buyer/cart');
+  const cartIdMonstera = extractCartItemId(r.text, 'Monstera Albo');
+  const cartIdRose = extractCartItemId(r.text, 'Rose Bush');
+  assert(cartIdMonstera !== null && cartIdRose !== null && cartIdMonstera !== cartIdRose, 'cart item ids extracted', `monstera=${cartIdMonstera} rose=${cartIdRose}`);
+
+  r = await buyer.request('POST', `/buyer/cart/${cartIdMonstera}/update`, { action: 'increase' });
+  assert(r.status === 302 && (r.location || '').includes('updated=1'), 'cart quantity increased', `status=${r.status} loc=${r.location}`);
+  r = await buyer.request('GET', '/buyer/cart');
+  assert(r.text.includes('<span class="qty-value">4</span>'), 'quantity increased to 4');
+
+  r = await buyer.request('POST', `/buyer/cart/${cartIdMonstera}/update`, { action: 'decrease' });
+  assert(r.status === 302 && (r.location || '').includes('updated=1'), 'cart quantity decreased', `status=${r.status}`);
+  r = await buyer.request('GET', '/buyer/cart');
+  assert(r.text.includes('<span class="qty-value">3</span>'), 'quantity decreased back to 3');
+
+  r = await buyer.request('POST', `/buyer/cart/${cartIdRose}/update`, { action: 'increase' });
+  r = await buyer.request('POST', `/buyer/cart/${cartIdRose}/update`, { action: 'increase' });
+  r = await buyer.request('POST', `/buyer/cart/${cartIdRose}/update`, { action: 'increase' });
+  r = await buyer.request('GET', '/buyer/cart');
+  assert(r.text.includes('<span class="qty-value">5</span>'), 'quantity increased to stock limit');
+
+  r = await buyer.request('POST', `/buyer/cart/${cartIdRose}/update`, { action: 'increase' });
+  assert(r.status === 302 && (r.location || '').includes('stock=1'), 'increase past stock rejected', `status=${r.status}`);
+  r = await buyer.request('GET', '/buyer/cart?stock=1');
+  assert(r.text.includes('<span class="qty-value">5</span>'), 'quantity stays at stock limit');
+
+  r = await buyer.request('POST', `/buyer/cart/${cartIdRose}/update`, { action: 'decrease' });
+  r = await buyer.request('GET', '/buyer/cart');
+  assert(r.text.includes('<span class="qty-value">4</span>'), 'quantity decreased from stock limit');
+
+  r = await buyer.request('POST', `/buyer/cart/${cartIdMonstera}/update`, { action: 'decrease' });
+  r = await buyer.request('POST', `/buyer/cart/${cartIdMonstera}/update`, { action: 'decrease' });
+  r = await buyer.request('GET', '/buyer/cart');
+  assert(r.text.includes('<span class="qty-value">1</span>'), 'quantity decreased to minimum');
+
+  r = await buyer.request('POST', `/buyer/cart/${cartIdMonstera}/update`, { action: 'decrease' });
+  assert(r.status === 302 && (r.location || '').includes('updated=1'), 'decrease below minimum clamped', `status=${r.status}`);
+  r = await buyer.request('GET', '/buyer/cart');
+  assert(r.text.includes('<span class="qty-value">1</span>'), 'quantity stays at minimum');
+
+  r = await buyer.request('POST', `/buyer/cart/${cartIdMonstera}/update`, { action: 'bogus' });
+  assert(r.status === 302 && (r.location || '').includes('invalid=1'), 'unknown cart action rejected', `status=${r.status}`);
+  r = await buyer.request('POST', '/buyer/cart/999999/update', { action: 'increase' });
+  assert(r.status === 302 && (r.location || '').includes('invalid=1'), 'other buyers cart item update rejected', `status=${r.status}`);
+
+  r = await buyer.request('GET', '/buyer/cart');
+  assert(r.text.includes('$119.95'), 'cart total correct after updates');
+
+  r = await anon.request('POST', '/register', {
+    fullName: 'Bella Buyer', email: 'bella@example.com', phone: '+254712345686',
+    password: 'secret123', confirmPassword: 'secret123', role: 'BUYER'
+  });
+  assert(r.status === 302, 'second buyer registered', `status=${r.status}`);
+  const buyerB = makeClient();
+  r = await buyerB.request('POST', '/login', { email: 'bella@example.com', password: 'secret123' });
+  assert(r.status === 302 && r.location === '/buyer/dashboard', 'second buyer logs in', `status=${r.status}`);
+
+  r = await buyerB.request('GET', '/buyer/cart');
+  assert(r.status === 200 && r.text.includes('Your cart is empty.'), 'second buyer sees own empty cart', `status=${r.status}`);
+
+  r = await buyerB.request('POST', `/buyer/cart/${cartIdMonstera}/update`, { action: 'increase' });
+  assert(r.status === 302 && (r.location || '').includes('invalid=1'), 'buyer cannot update other buyers cart item', `status=${r.status} loc=${r.location}`);
+  r = await buyerB.request('POST', `/buyer/cart/${cartIdMonstera}/remove`, {});
+  assert(r.status === 302 && (r.location || '').includes('invalid=1'), 'buyer cannot remove other buyers cart item', `status=${r.status}`);
+
+  r = await buyer.request('GET', '/buyer/cart');
+  assert(r.text.includes('Monstera Albo') && r.text.includes('Rose Bush'), 'original cart intact after other buyer attempts');
+
+  r = await buyerB.request('POST', '/buyer/cart/add', { product_id: String(idMonstera), quantity: '1' });
+  assert(r.status === 302 && (r.location || '').includes('added=1'), 'second buyer adds own cart item', `status=${r.status}`);
+  r = await buyerB.request('GET', '/buyer/cart');
+  const cartIdB = extractCartItemId(r.text, 'Monstera Albo');
+  assert(cartIdB !== null && cartIdB !== cartIdMonstera, 'second buyer has separate cart row', `idB=${cartIdB}`);
+  r = await buyerB.request('POST', `/buyer/cart/${cartIdB}/remove`, {});
+  assert(r.status === 302 && (r.location || '').includes('removed=1'), 'second buyer removes own cart item', `status=${r.status}`);
+
+  r = await seller.request('GET', '/seller/dashboard');
+  assert(!r.text.includes('/buyer/cart'), 'seller header hides cart link');
+
+  r = await buyer.request('GET', '/buyer/dashboard');
+  assert(r.text.includes('href="/buyer/cart"'), 'buyer dashboard has cart card');
+
+  r = await buyer.request('POST', `/buyer/cart/${cartIdRose}/remove`, {});
+  assert(r.status === 302 && (r.location || '').includes('removed=1'), 'buyer removes product from cart', `status=${r.status}`);
+
+  r = await buyer.request('GET', '/buyer/cart?removed=1');
+  assert(r.text.includes('Product removed from your cart.'), 'removed success message shown');
+  assert(!r.text.includes('Rose Bush'), 'removed product gone from cart');
+
+  r = await buyer.request('POST', `/buyer/cart/${cartIdMonstera}/remove`, {});
+  assert(r.status === 302 && (r.location || '').includes('removed=1'), 'buyer removes last cart item', `status=${r.status}`);
+  r = await buyer.request('GET', '/buyer/cart');
+  assert(r.text.includes('Your cart is empty.'), 'cart empty after removing all items');
+
   const badLogin = makeClient();
   r = await badLogin.request('POST', '/login', { email: 'jane@example.com', password: 'wrong' });
   assert(r.status === 302 && (r.location || '').includes('/login?error=1'), 'invalid credentials show error redirect', `status=${r.status} loc=${r.location}`);
@@ -373,6 +585,15 @@ async function run() {
   assert(orphanProducts.c === 0, 'all products reference a valid seller');
   const editedRow = db.prepare("SELECT name FROM products WHERE id = ?").get(idMonstera);
   assert(editedRow && editedRow.name === 'Monstera Albo', 'edited product name persisted in DB', editedRow && editedRow.name);
+
+  const janeId = db.prepare("SELECT id FROM users WHERE email = 'jane@example.com'").get().id;
+  const janeCart = db.prepare('SELECT COUNT(*) AS c FROM cart_items WHERE buyer_id = ?').get(janeId);
+  const allCart = db.prepare('SELECT COUNT(*) AS c FROM cart_items').get();
+  assert(janeCart.c === 0 && allCart.c === 0, 'no cart rows remain after removals', `jane=${janeCart.c} all=${allCart.c}`);
+  const orphanCart = db.prepare(
+    'SELECT COUNT(*) AS c FROM cart_items ci LEFT JOIN users u ON u.id = ci.buyer_id LEFT JOIN products p ON p.id = ci.product_id WHERE u.id IS NULL OR p.id IS NULL'
+  ).get();
+  assert(orphanCart.c === 0, 'all cart items reference existing users and products');
 
   db.close();
   require('../config/db').close();
