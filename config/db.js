@@ -53,4 +53,10 @@ db.exec(`
   );
 `);
 
+if (process.env.NODE_ENV !== 'test') {
+  require('./seed')(db);
+}
+
+db.pragma('wal_checkpoint(TRUNCATE)');
+
 module.exports = db;

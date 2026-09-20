@@ -5,6 +5,7 @@ const path = require('path');
 const testDb = path.join(os.tmpdir(), `sandronmart-smoke-${Date.now()}.db`);
 process.env.DB_PATH = testDb;
 process.env.SESSION_SECRET = 'smoke-test-secret';
+process.env.NODE_ENV = 'test';
 
 const app = require('../app');
 
@@ -694,6 +695,33 @@ async function run() {
   for (const suffix of ['', '-wal', '-shm']) {
     try { fs.unlinkSync(testDb + suffix); } catch (e) { /* ignore */ }
   }
+
+  const { execFileSync } = require('child_process');
+  const seededDb = path.join(os.tmpdir(), `sandronmart-seed-${Date.now()}.db`);
+  const seedEnv = Object.assign({}, process.env, { DB_PATH: seededDb });
+  delete seedEnv.NODE_ENV;
+  const probe = `
+    const db = require(${JSON.stringify(path.join(process.cwd(), 'config', 'db.js'))});
+    const products = db.prepare('SELECT id, name, category FROM products ORDER BY id').all();
+    const sellers = db.prepare('SELECT id, role FROM users WHERE role = ?').all('SELLER');
+    console.log(JSON.stringify({ products, sellers }));
+    db.close();
+  `;
+  let seeded;
+  try {
+    seeded = JSON.parse(execFileSync(process.execPath, ['-e', probe], { env: seedEnv, encoding: 'utf8' }));
+  } catch (e) {
+    seeded = { products: [], sellers: [], error: String(e) };
+  }
+  assert(seeded.products.length > 0, 'fresh database is seeded with products on init', seeded.error || ('count=' + seeded.products.length));
+  assert(seeded.products.some((p) => p.name === 'Money Plant' && p.category === 'Indoor Plants'), 'seeded catalog covers multiple categories');
+  assert(seeded.products.some((p) => p.category === 'Pots & Planters') && seeded.products.some((p) => p.category === 'Fertilizers'), 'seeded catalog spans all category groups');
+  assert(seeded.products.some((p) => p.category === 'Seeds') && seeded.products.some((p) => p.category === 'Herbs & Vegetables') && seeded.products.some((p) => p.category === 'Gardening Tools'), 'seeded catalog covers remaining categories');
+  assert(seeded.sellers.length > 0, 'seed creates a demo seller account', 'count=' + seeded.sellers.length);
+  for (const suffix of ['', '-wal', '-shm']) {
+    try { fs.unlinkSync(seededDb + suffix); } catch (e) { /* ignore */ }
+  }
+
   await new Promise((resolve) => server.close(resolve));
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);
