@@ -244,6 +244,107 @@ async function run() {
   r = await buyer.request('POST', `/seller/products/${idMonstera}/delete`, {});
   assert(r.status === 403 && r.text.includes('403'), 'buyer blocked from deleting product (403)', `status=${r.status}`);
 
+  /* ===== Buyer Product Browsing ===== */
+
+  r = await seller.request('POST', '/seller/products', {
+    name: 'Rose Bush', description: 'A fragrant climbing rose for sunny gardens.', category: 'Outdoor Plants',
+    price: '19.99', stock: '5', imageUrl: 'https://example.com/rose.jpg'
+  });
+  assert(r.status === 302 && (r.location || '').includes('created=1'), 'seller creates outdoor plant for browsing', `status=${r.status}`);
+
+  r = await seller.request('POST', '/seller/products', {
+    name: 'Garden Trowel', description: 'A sturdy hand tool for planting and weeding.', category: 'Gardening Tools',
+    price: '8.75', stock: '0', imageUrl: 'https://example.com/trowel.jpg'
+  });
+  assert(r.status === 302 && (r.location || '').includes('created=1'), 'seller creates gardening tool for browsing', `status=${r.status}`);
+
+  r = await anon.request('GET', '/buyer/products');
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'anonymous product browsing redirects to login', `status=${r.status}`);
+  r = await anon.request('GET', `/buyer/products/${idMonstera}`);
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'anonymous product detail redirects to login', `status=${r.status}`);
+  r = await anon.request('GET', '/buyer/account');
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'anonymous buyer account redirects to login', `status=${r.status}`);
+  r = await anon.request('GET', '/buyer/orders');
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'anonymous buyer orders redirects to login', `status=${r.status}`);
+
+  r = await seller.request('GET', '/buyer/products');
+  assert(r.status === 403 && r.text.includes('403'), 'seller blocked from browsing products (403)', `status=${r.status}`);
+  r = await seller.request('GET', `/buyer/products/${idMonstera}`);
+  assert(r.status === 403 && r.text.includes('403'), 'seller blocked from product detail (403)', `status=${r.status}`);
+  r = await seller.request('GET', '/buyer/account');
+  assert(r.status === 403 && r.text.includes('403'), 'seller blocked from buyer account (403)', `status=${r.status}`);
+  r = await seller.request('GET', '/buyer/orders');
+  assert(r.status === 403 && r.text.includes('403'), 'seller blocked from buyer orders (403)', `status=${r.status}`);
+
+  r = await buyer.request('GET', '/buyer/products');
+  assert(r.status === 200 && r.text.includes('Browse Products'), 'buyer products page renders', `status=${r.status}`);
+  assert(r.text.includes('Monstera Albo') && r.text.includes('Rose Bush') && r.text.includes('Garden Trowel'), 'buyer sees all active products');
+  assert(!r.text.includes('Tomato Seeds'), 'deleted product hidden from buyer');
+  assert(r.text.includes('Out of stock'), 'buyer sees out-of-stock indicator');
+  assert(r.text.includes('10 in stock') || r.text.includes('in stock'), 'buyer sees stock availability');
+  assert(/\/buyer\/products\/\d+/.test(r.text), 'product cards link to detail pages');
+  assert(r.text.includes('href="/buyer/dashboard"') && r.text.includes('href="/buyer/products"') && r.text.includes('href="/buyer/account"') && r.text.includes('href="/buyer/orders"'), 'buyer header shows navigation links');
+
+  r = await seller.request('GET', '/seller/dashboard');
+  assert(!r.text.includes('/buyer/products') && !r.text.includes('/buyer/account') && !r.text.includes('/buyer/orders'), 'seller header hides buyer links');
+
+  r = await buyer.request('GET', '/buyer/products?search=rose');
+  assert(r.text.includes('Rose Bush') && !r.text.includes('Monstera Albo') && !r.text.includes('Garden Trowel'), 'search matches product name');
+
+  r = await buyer.request('GET', '/buyer/products?search=fragrant');
+  assert(r.text.includes('Rose Bush') && !r.text.includes('Garden Trowel'), 'search matches product description');
+
+  r = await buyer.request('GET', '/buyer/products?search=gardening');
+  assert(r.text.includes('Garden Trowel') && !r.text.includes('Monstera Albo') && !r.text.includes('Rose Bush'), 'search matches category name');
+
+  r = await buyer.request('GET', '/buyer/products?category=' + encodeURIComponent('Gardening Tools'));
+  assert(r.text.includes('Garden Trowel') && !r.text.includes('Monstera Albo') && !r.text.includes('Rose Bush'), 'category filter narrows list');
+
+  r = await buyer.request('GET', '/buyer/products?category=' + encodeURIComponent('Indoor Plants'));
+  assert(r.text.includes('Monstera Albo') && !r.text.includes('Rose Bush'), 'category filter matches indoor plants');
+
+  r = await buyer.request('GET', '/buyer/products?search=rose&category=' + encodeURIComponent('Outdoor Plants'));
+  assert(r.text.includes('Rose Bush') && !r.text.includes('Garden Trowel'), 'search and category filter combine');
+
+  r = await buyer.request('GET', '/buyer/products?search=zzznoresults');
+  assert(r.text.includes('No products found'), 'search with no matches shows empty state');
+
+  r = await buyer.request('GET', '/buyer/products?category=' + encodeURIComponent('Fertilizers'));
+  assert(r.text.includes('No products found'), 'category with no products shows empty state');
+
+  r = await buyer.request('GET', '/buyer/products?category=Junk');
+  assert(r.status === 200 && r.text.includes('Monstera Albo'), 'unknown category falls back to all products', `status=${r.status}`);
+
+  r = await buyer.request('GET', `/buyer/products/${idMonstera}`);
+  assert(r.status === 200 && r.text.includes('Monstera Albo'), 'buyer opens product detail', `status=${r.status}`);
+  assert(r.text.includes('Indoor Plants') && r.text.includes('$39.99'), 'detail shows category and price');
+  assert(r.text.includes('7 in stock'), 'detail shows available stock');
+  assert(r.text.includes('Sam Seller'), 'detail shows seller information');
+  assert(r.text.includes('Add to Cart'), 'detail shows add to cart button');
+  assert(r.text.includes('A variegated indoor plant.'), 'detail shows description');
+
+  r = await buyer.request('GET', `/buyer/products/${idTomato}`);
+  assert(r.status === 404 && r.text.includes('Not Found'), 'deleted product detail returns 404', `status=${r.status}`);
+  r = await buyer.request('GET', '/buyer/products/999999');
+  assert(r.status === 404 && r.text.includes('Not Found'), 'non-existent product detail returns 404', `status=${r.status}`);
+
+  r = await buyer.request('GET', '/buyer/account');
+  assert(r.status === 200 && r.text.includes('My Account'), 'buyer account page renders', `status=${r.status}`);
+  assert(r.text.includes('Jane Buyer') && r.text.includes('jane@example.com'), 'account shows name and email');
+  assert(r.text.includes('+254712345678'), 'account shows phone');
+  assert(r.text.includes('BUYER'), 'account shows role');
+  assert(r.text.includes('Member Since'), 'account shows membership date');
+  assert(!r.text.includes('secret123') && !r.text.includes('password_hash'), 'account never exposes password');
+
+  r = await buyer.request('GET', '/buyer/orders');
+  assert(r.status === 200 && r.text.includes('My Orders'), 'buyer orders page renders', `status=${r.status}`);
+  assert(r.text.includes('Your orders will appear here after you place an order.'), 'orders empty state message shown');
+
+  r = await buyer.request('GET', '/buyer/dashboard');
+  assert(r.status === 200 && r.text.includes('Discover Plants'), 'buyer dashboard renders', `status=${r.status}`);
+  assert(r.text.includes('href="/buyer/products"') && r.text.includes('href="/buyer/account"') && r.text.includes('href="/buyer/orders"'), 'dashboard cards link to buyer pages');
+  assert(!r.text.includes('coming soon'), 'no coming-soon placeholders on buyer dashboard');
+
   const badLogin = makeClient();
   r = await badLogin.request('POST', '/login', { email: 'jane@example.com', password: 'wrong' });
   assert(r.status === 302 && (r.location || '').includes('/login?error=1'), 'invalid credentials show error redirect', `status=${r.status} loc=${r.location}`);
@@ -263,7 +364,9 @@ async function run() {
   const samId = db.prepare("SELECT id FROM users WHERE email = 'sam@example.com'").get().id;
   const ownProducts = db.prepare('SELECT COUNT(*) AS c FROM products WHERE seller_id = ?').get(samId);
   const allProducts = db.prepare('SELECT COUNT(*) AS c FROM products').get();
-  assert(ownProducts.c === 1 && allProducts.c === 1, 'products scoped to owner seller in DB', `own=${ownProducts.c} all=${allProducts.c}`);
+  assert(ownProducts.c === 3 && allProducts.c === 3, 'products scoped to owner seller in DB', `own=${ownProducts.c} all=${allProducts.c}`);
+  const deletedRow = db.prepare('SELECT COUNT(*) AS c FROM products WHERE id = ?').get(idTomato);
+  assert(deletedRow.c === 0, 'deleted product removed from DB', `count=${deletedRow.c}`);
   const orphanProducts = db.prepare(
     'SELECT COUNT(*) AS c FROM products p LEFT JOIN users u ON u.id = p.seller_id WHERE u.id IS NULL'
   ).get();

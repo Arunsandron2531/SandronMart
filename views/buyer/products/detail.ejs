@@ -1,0 +1,35 @@
+<%- include('../../partials/header', { title: product.name }) %>
+
+<div class="container">
+  <div class="detail-grid">
+    <div class="detail-media">
+      <% if (product.image_url) { %>
+        <img class="detail-image" src="<%= product.image_url %>" alt="<%= product.name %>"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+        <div class="detail-image detail-image-fallback" style="display:none;">🌱</div>
+      <% } else { %>
+        <div class="detail-image detail-image-fallback">🌱</div>
+      <% } %>
+    </div>
+
+    <div class="detail-info">
+      <span class="product-category"><%= product.category %></span>
+      <h1 class="detail-title"><%= product.name %></h1>
+      <div class="detail-price">$<%= Number(product.price).toFixed(2) %></div>
+      <span class="stock-chip <%= product.stock === 0 ? 'stock-out' : 'stock-in' %>">
+        <%= product.stock === 0 ? 'Out of stock' : product.stock + ' in stock' %>
+      </span>
+      <p class="detail-desc"><%= product.description %></p>
+      <% if (product.seller_name) { %>
+        <p class="detail-seller">Sold by <strong><%= product.seller_name %></strong></p>
+      <% } %>
+      <div class="detail-actions">
+        <button class="btn btn-primary" type="button" disabled title="Cart and checkout coming soon">Add to Cart</button>
+        <a class="btn btn-outline" href="/buyer/products">&larr; Back to products</a>
+      </div>
+      <p class="form-hint">Cart and checkout are coming soon.</p>
+    </div>
+  </div>
+</div>
+
+<%- include('../../partials/footer') %>

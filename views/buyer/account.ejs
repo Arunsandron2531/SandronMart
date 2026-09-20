@@ -1,0 +1,35 @@
+<%- include('../partials/header', { title: 'My Account' }) %>
+
+<div class="container narrow">
+  <div class="page-head">
+    <div>
+      <h1>My Account</h1>
+      <p class="muted">Your SANDRONMART profile.</p>
+    </div>
+  </div>
+
+  <div class="account-card">
+    <div class="account-field">
+      <span class="account-label">Full Name</span>
+      <span class="account-value"><%= user.full_name %></span>
+    </div>
+    <div class="account-field">
+      <span class="account-label">Email</span>
+      <span class="account-value"><%= user.email %></span>
+    </div>
+    <div class="account-field">
+      <span class="account-label">Phone</span>
+      <span class="account-value"><%= user.phone %></span>
+    </div>
+    <div class="account-field">
+      <span class="account-label">Role</span>
+      <span class="account-value"><span class="user-badge"><%= user.role %></span></span>
+    </div>
+    <div class="account-field">
+      <span class="account-label">Member Since</span>
+      <span class="account-value"><%= memberSince %></span>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

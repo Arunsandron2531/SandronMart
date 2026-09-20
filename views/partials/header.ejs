@@ -19,7 +19,13 @@
           <span class="nav-user">Hi, <%= currentUser.name %></span>
           <span class="user-badge"><%= currentUser.role %></span>
           <% if (currentUser.role === 'SELLER') { %>
+            <a class="nav-link" href="/seller/dashboard">Dashboard</a>
             <a class="nav-link" href="/seller/products">My Products</a>
+          <% } else { %>
+            <a class="nav-link" href="/buyer/dashboard">Home</a>
+            <a class="nav-link" href="/buyer/products">Products</a>
+            <a class="nav-link" href="/buyer/account">My Account</a>
+            <a class="nav-link" href="/buyer/orders">Orders</a>
           <% } %>
           <form method="post" action="/logout">
             <button class="btn btn-danger-outline btn-sm" type="submit">Logout</button>

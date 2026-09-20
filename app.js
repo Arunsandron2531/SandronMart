@@ -44,6 +44,7 @@ app.use((req, res, next) => {
 
 app.use('/', require('./routes/pages'));
 app.use('/', require('./routes/auth'));
+app.use('/', require('./routes/buyer'));
 app.use('/', require('./routes/products'));
 
 app.use((req, res) => {

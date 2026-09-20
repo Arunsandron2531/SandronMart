@@ -1,0 +1,63 @@
+<%- include('../../partials/header', { title: 'Browse Products' }) %>
+
+<div class="container">
+  <div class="page-head">
+    <div>
+      <h1>Browse Products</h1>
+      <p class="muted">Discover plants and gardening supplies from our sellers.</p>
+    </div>
+  </div>
+
+  <form class="filter-bar" method="get" action="/buyer/products">
+    <input class="input" type="search" name="search" placeholder="Search by name, description, or category..."
+           value="<%= search %>" aria-label="Search products">
+    <select class="input" name="category" aria-label="Filter by category">
+      <option value="">All Categories</option>
+      <% categories.forEach(function (category) { %>
+        <option value="<%= category %>" <%= category === selectedCategory ? 'selected' : '' %>><%= category %></option>
+      <% }) %>
+    </select>
+    <button class="btn btn-primary" type="submit">Search</button>
+    <% if (search || selectedCategory) { %>
+      <a class="btn btn-outline" href="/buyer/products">Clear</a>
+    <% } %>
+  </form>
+
+  <% if (products.length === 0) { %>
+    <div class="empty-state">
+      <div class="empty-icon">🌿</div>
+      <h3>No products found</h3>
+      <p>Try adjusting your search or category filter.</p>
+    </div>
+  <% } else { %>
+    <div class="product-grid">
+      <% products.forEach(function (product) { %>
+        <div class="product-card">
+          <% if (product.image_url) { %>
+            <img class="product-thumb" src="<%= product.image_url %>" alt="<%= product.name %>"
+                 loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+            <div class="product-thumb product-thumb-fallback" style="display:none;">🌱</div>
+          <% } else { %>
+            <div class="product-thumb product-thumb-fallback">🌱</div>
+          <% } %>
+          <div class="product-body">
+            <div class="product-meta">
+              <span class="product-category"><%= product.category %></span>
+              <span class="stock-chip <%= product.stock === 0 ? 'stock-out' : 'stock-in' %>">
+                <%= product.stock === 0 ? 'Out of stock' : product.stock + ' in stock' %>
+              </span>
+            </div>
+            <h3 class="product-name"><%= product.name %></h3>
+            <div class="product-price">$<%= Number(product.price).toFixed(2) %></div>
+            <p class="product-desc"><%= product.description %></p>
+            <div class="product-actions">
+              <a class="btn btn-primary btn-sm" href="/buyer/products/<%= product.id %>">View Details</a>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../../partials/footer') %>

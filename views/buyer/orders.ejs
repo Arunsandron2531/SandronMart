@@ -1,0 +1,19 @@
+<%- include('../partials/header', { title: 'My Orders' }) %>
+
+<div class="container">
+  <div class="page-head">
+    <div>
+      <h1>My Orders</h1>
+      <p class="muted">Track your purchases.</p>
+    </div>
+  </div>
+
+  <div class="empty-state">
+    <div class="empty-icon">📦</div>
+    <h3>No orders yet</h3>
+    <p>Your orders will appear here after you place an order.</p>
+    <a class="btn btn-primary" href="/buyer/products">Browse Products</a>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

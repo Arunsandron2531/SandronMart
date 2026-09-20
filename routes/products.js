@@ -5,7 +5,7 @@ const { validateProduct, PRODUCT_CATEGORIES } = require('../utils/validators');
 
 const router = express.Router();
 
-router.use(requireRole('SELLER'));
+router.use('/seller', requireRole('SELLER'));
 
 function findOwnProduct(id, sellerId) {
   return db.prepare('SELECT * FROM products WHERE id = ? AND seller_id = ?').get(id, sellerId);
