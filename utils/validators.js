@@ -2,6 +2,16 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\+?[0-9]{6,15}$/;
 const ROLES = ['BUYER', 'SELLER'];
 
+const PRODUCT_CATEGORIES = [
+  'Indoor Plants',
+  'Outdoor Plants',
+  'Seeds',
+  'Pots & Planters',
+  'Gardening Tools',
+  'Fertilizers',
+  'Herbs & Vegetables',
+];
+
 function addError(errors, field, message) {
   if (!errors[field]) {
     errors[field] = [];
@@ -68,7 +78,45 @@ function validateRegister(body) {
   return errors;
 }
 
+function validateProduct(body) {
+  const errors = {};
+  const { name, description, category, price, stock } = body;
+
+  if (!name || !name.trim()) {
+    addError(errors, 'name', 'Product name is required');
+  }
+
+  if (!description || !description.trim()) {
+    addError(errors, 'description', 'Description is required');
+  }
+
+  if (!category || !PRODUCT_CATEGORIES.includes(category.trim())) {
+    addError(errors, 'category', 'Please select a valid category');
+  }
+
+  if (price === undefined || price === null || String(price).trim() === '') {
+    addError(errors, 'price', 'Price is required');
+  } else {
+    const numericPrice = Number(price);
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+      addError(errors, 'price', 'Price must be greater than 0');
+    }
+  }
+
+  if (stock === undefined || stock === null || String(stock).trim() === '') {
+    addError(errors, 'stock', 'Stock quantity is required');
+  } else if (!/^\d+$/.test(String(stock).trim())) {
+    addError(errors, 'stock', 'Stock must be a whole number');
+  } else if (Number(stock) < 0) {
+    addError(errors, 'stock', 'Stock must be 0 or greater');
+  }
+
+  return errors;
+}
+
 module.exports = {
   validateLogin,
   validateRegister,
+  validateProduct,
+  PRODUCT_CATEGORIES,
 };

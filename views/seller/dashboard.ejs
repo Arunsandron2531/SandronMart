@@ -8,10 +8,17 @@
   </section>
 
   <section class="dash-grid">
-    <div class="dash-card">
+    <div class="dash-card action-card">
       <div class="card-icon">🌱</div>
-      <h3>My Store</h3>
-      <p>List plants, seeds, and tools for buyers to discover (coming soon).</p>
+      <h3>My Products</h3>
+      <p>View, edit, and remove the items you sell.</p>
+      <a class="btn btn-primary btn-sm" href="/seller/products">My Products</a>
+    </div>
+    <div class="dash-card action-card">
+      <div class="card-icon">➕</div>
+      <h3>Add Product</h3>
+      <p>List a new plant, seed, or gardening tool.</p>
+      <a class="btn btn-primary btn-sm" href="/seller/products/new">Add Product</a>
     </div>
     <div class="dash-card">
       <div class="card-icon">📈</div>
@@ -24,10 +31,6 @@
       <p><%= user.email %></p>
     </div>
   </section>
-
-  <div class="placeholder">
-    Marketplace features (products, inventory, orders, payments) are coming soon.
-  </div>
 </div>
 
 <%- include('../partials/footer') %>

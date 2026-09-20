@@ -24,4 +24,21 @@ db.exec(`
   );
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS products (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    seller_id   INTEGER NOT NULL REFERENCES users(id),
+    name        TEXT    NOT NULL,
+    description TEXT    NOT NULL,
+    category    TEXT    NOT NULL,
+    price       REAL    NOT NULL,
+    stock       INTEGER NOT NULL,
+    image_url   TEXT,
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec('CREATE INDEX IF NOT EXISTS idx_products_seller_id ON products(seller_id);');
+
 module.exports = db;

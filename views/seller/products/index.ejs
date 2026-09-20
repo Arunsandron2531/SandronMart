@@ -1,0 +1,75 @@
+<%- include('../../partials/header', { title: 'My Products' }) %>
+
+<div class="container">
+  <div class="page-head">
+    <div>
+      <h1>My Products</h1>
+      <p class="muted">Manage the plants and gardening items in your store.</p>
+    </div>
+    <a class="btn btn-primary" href="/seller/products/new">+ Add Product</a>
+  </div>
+
+  <% if (messages.success) { %>
+    <div class="alert alert-success"><%= messages.success %></div>
+  <% } %>
+  <% if (messages.error) { %>
+    <div class="alert alert-error"><%= messages.error %></div>
+  <% } %>
+
+  <% if (products.length === 0) { %>
+    <div class="empty-state">
+      <div class="empty-icon">🌱</div>
+      <h3>No products yet</h3>
+      <p>Add your first plant, seed, or tool to start selling on SANDRONMART.</p>
+      <a class="btn btn-primary" href="/seller/products/new">+ Add Product</a>
+    </div>
+  <% } else { %>
+    <div class="product-grid">
+      <% products.forEach(function (product) { %>
+        <div class="product-card">
+          <% if (product.image_url) { %>
+            <img class="product-thumb" src="<%= product.image_url %>" alt="<%= product.name %>"
+                 loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+            <div class="product-thumb product-thumb-fallback" style="display:none;">🌱</div>
+          <% } else { %>
+            <div class="product-thumb product-thumb-fallback">🌱</div>
+          <% } %>
+          <div class="product-body">
+            <div class="product-meta">
+              <span class="product-category"><%= product.category %></span>
+              <span class="stock-chip <%= product.stock === 0 ? 'stock-out' : 'stock-in' %>">
+                <%= product.stock %> in stock
+              </span>
+            </div>
+            <h3 class="product-name"><%= product.name %></h3>
+            <div class="product-price">$<%= Number(product.price).toFixed(2) %></div>
+            <p class="product-desc"><%= product.description %></p>
+            <div class="product-actions">
+              <a class="btn btn-outline btn-sm" href="/seller/products/<%= product.id %>/edit">Edit</a>
+              <button class="btn btn-danger-outline btn-sm js-confirm-delete"
+                      type="button"
+                      data-delete-form="delete-form-<%= product.id %>"
+                      data-product-name="<%= product.name %>">Delete</button>
+            </div>
+            <form id="delete-form-<%= product.id %>" method="post"
+                  action="/seller/products/<%= product.id %>/delete"></form>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<div class="modal-overlay" id="deleteModal" hidden>
+  <div class="modal">
+    <h3>Delete this product?</h3>
+    <p>You are about to permanently delete <strong id="deleteProductName"></strong>. This cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="deleteCancel" type="button">Cancel</button>
+      <button class="btn btn-danger" id="deleteConfirm" type="button">Delete</button>
+    </div>
+  </div>
+</div>
+
+<%- include('../../partials/footer') %>
+<script src="/js/products.js"></script>

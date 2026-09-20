@@ -47,6 +47,30 @@ function makeClient() {
   return client;
 }
 
+function validProduct(overrides) {
+  return Object.assign({
+    name: 'Snake Plant',
+    description: 'A hardy low-light indoor plant.',
+    category: 'Indoor Plants',
+    price: '18.00',
+    stock: '12',
+    imageUrl: 'https://example.com/snake-plant.jpg',
+  }, overrides || {});
+}
+
+function extractProductId(html, productName) {
+  const cards = html.split('class="product-card"');
+  for (const card of cards) {
+    if (card.includes(productName)) {
+      const match = card.match(/\/seller\/products\/(\d+)\/edit/);
+      if (match) {
+        return Number(match[1]);
+      }
+    }
+  }
+  return null;
+}
+
 async function run() {
   server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
@@ -123,6 +147,103 @@ async function run() {
   r = await seller.request('GET', '/buyer/dashboard');
   assert(r.status === 403 && r.text.includes('403'), 'seller blocked from buyer dashboard (403)', `status=${r.status}`);
 
+  /* ===== Seller Product Management ===== */
+
+  r = await anon.request('POST', '/register', {
+    fullName: 'Otto Seller', email: 'otto@example.com', phone: '+254712345683',
+    password: 'secret123', confirmPassword: 'secret123', role: 'SELLER'
+  });
+  assert(r.status === 302, 'second seller registered', `status=${r.status}`);
+
+  const sellerB = makeClient();
+  r = await sellerB.request('POST', '/login', { email: 'otto@example.com', password: 'secret123' });
+  assert(r.status === 302 && r.location === '/seller/dashboard', 'second seller logs in', `status=${r.status}`);
+
+  r = await buyer.request('GET', '/seller/products');
+  assert(r.status === 403 && r.text.includes('403'), 'buyer blocked from /seller/products (403)', `status=${r.status}`);
+  r = await buyer.request('GET', '/seller/products/new');
+  assert(r.status === 403 && r.text.includes('403'), 'buyer blocked from add product page (403)', `status=${r.status}`);
+  r = await buyer.request('POST', '/seller/products', validProduct({ name: 'Should Not Create' }));
+  assert(r.status === 403 && r.text.includes('403'), 'buyer blocked from creating product (403)', `status=${r.status}`);
+
+  r = await seller.request('GET', '/seller/products');
+  assert(r.status === 200 && r.text.includes('My Products'), 'seller products page renders', `status=${r.status}`);
+  assert(r.text.includes('No products yet'), 'empty state shown for new seller');
+
+  r = await seller.request('GET', '/seller/products/new');
+  assert(r.status === 200 && r.text.includes('Add Product'), 'add product page renders', `status=${r.status}`);
+
+  r = await seller.request('POST', '/seller/products', {
+    name: 'Monstera Deliciosa', description: 'A lush indoor plant.', category: 'Indoor Plants',
+    price: '24.99', stock: '10', imageUrl: 'https://example.com/monstera.jpg'
+  });
+  assert(r.status === 302 && (r.location || '').includes('/seller/products?created=1'), 'seller creates product', `status=${r.status} loc=${r.location}`);
+
+  r = await seller.request('POST', '/seller/products', {
+    name: 'Tomato Seeds', description: 'Heirloom cherry tomato seeds.', category: 'Seeds',
+    price: '3.5', stock: '0', imageUrl: ''
+  });
+  assert(r.status === 302 && (r.location || '').includes('created=1'), 'seller creates zero-stock product', `status=${r.status}`);
+
+  r = await seller.request('GET', '/seller/products?created=1');
+  assert(r.text.includes('Product added successfully.'), 'created success message shown');
+  assert(r.text.includes('Monstera Deliciosa') && r.text.includes('Tomato Seeds'), 'list shows only own products');
+  assert(r.text.includes('Indoor Plants') && r.text.includes('Seeds'), 'list shows categories');
+  assert(r.text.includes('$24.99') && r.text.includes('$3.50'), 'list shows formatted prices');
+  assert(r.text.includes('10 in stock') && r.text.includes('0 in stock'), 'list shows stock');
+  assert(r.text.includes('/edit') && /js-confirm-delete/.test(r.text), 'list has edit and delete controls');
+
+  const idMonstera = extractProductId(r.text, 'Monstera Deliciosa');
+  const idTomato = extractProductId(r.text, 'Tomato Seeds');
+  assert(idMonstera !== null && idTomato !== null && idMonstera !== idTomato, 'product ids extracted', `monstera=${idMonstera} tomato=${idTomato}`);
+
+  r = await seller.request('GET', `/seller/products/${idMonstera}/edit`);
+  assert(r.status === 200 && r.text.includes('Edit Product') && r.text.includes('Monstera Deliciosa'), 'edit page prefilled for own product', `status=${r.status}`);
+
+  r = await seller.request('POST', `/seller/products/${idMonstera}/update`, {
+    name: 'Monstera Albo', description: 'A variegated indoor plant.', category: 'Indoor Plants',
+    price: '39.99', stock: '7', imageUrl: 'https://example.com/albo.jpg'
+  });
+  assert(r.status === 302 && (r.location || '').includes('updated=1'), 'seller updates own product', `status=${r.status} loc=${r.location}`);
+
+  r = await seller.request('GET', '/seller/products?updated=1');
+  assert(r.text.includes('Product updated successfully.'), 'updated success message shown');
+  assert(r.text.includes('Monstera Albo') && !r.text.includes('Monstera Deliciosa'), 'updated name reflected in list');
+
+  r = await sellerB.request('GET', `/seller/products/${idMonstera}/edit`);
+  assert(r.status === 302 && (r.location || '').includes('/seller/products?error=1'), 'other seller cannot open edit page', `status=${r.status} loc=${r.location}`);
+
+  r = await sellerB.request('POST', `/seller/products/${idMonstera}/update`, validProduct({ name: 'HACKED', price: '1.00' }));
+  assert(r.status === 302 && (r.location || '').includes('error=1'), 'other seller cannot update product', `status=${r.status} loc=${r.location}`);
+
+  r = await sellerB.request('POST', `/seller/products/${idMonstera}/delete`, {});
+  assert(r.status === 302 && (r.location || '').includes('error=1'), 'other seller cannot delete product', `status=${r.status} loc=${r.location}`);
+
+  r = await seller.request('GET', '/seller/products');
+  assert(r.text.includes('Monstera Albo'), 'product intact after other seller attempts');
+
+  r = await seller.request('POST', '/seller/products', {
+    name: '', description: '', category: 'Nonexistent', price: '0', stock: '-5', imageUrl: ''
+  });
+  assert(r.status === 400, 'invalid product rejected with 400', `status=${r.status}`);
+  assert(r.text.includes('Product name is required'), 'name validation message');
+  assert(r.text.includes('Description is required'), 'description validation message');
+  assert(r.text.includes('valid category'), 'category validation message');
+  assert(r.text.includes('must be greater than 0'), 'price validation message');
+  assert(r.text.includes('Stock'), 'stock validation message');
+
+  r = await seller.request('POST', `/seller/products/${idTomato}/delete`, {});
+  assert(r.status === 302 && (r.location || '').includes('deleted=1'), 'seller deletes own product', `status=${r.status} loc=${r.location}`);
+
+  r = await seller.request('GET', '/seller/products?deleted=1');
+  assert(r.text.includes('Product deleted successfully.'), 'deleted success message shown');
+  assert(!r.text.includes('Tomato Seeds'), 'deleted product removed from list');
+
+  r = await buyer.request('POST', `/seller/products/${idMonstera}/update`, validProduct({ name: 'Sneaky Update' }));
+  assert(r.status === 403 && r.text.includes('403'), 'buyer blocked from updating product (403)', `status=${r.status}`);
+  r = await buyer.request('POST', `/seller/products/${idMonstera}/delete`, {});
+  assert(r.status === 403 && r.text.includes('403'), 'buyer blocked from deleting product (403)', `status=${r.status}`);
+
   const badLogin = makeClient();
   r = await badLogin.request('POST', '/login', { email: 'jane@example.com', password: 'wrong' });
   assert(r.status === 302 && (r.location || '').includes('/login?error=1'), 'invalid credentials show error redirect', `status=${r.status} loc=${r.location}`);
@@ -138,6 +259,18 @@ async function run() {
   const stored = db.prepare("SELECT password_hash FROM users WHERE email = 'jane@example.com'").get();
   assert(stored && stored.password_hash.startsWith('$2'), 'password stored as bcrypt hash, not plain text', stored ? stored.password_hash : 'missing');
   assert(stored && stored.password_hash !== 'secret123', 'stored hash differs from plain text');
+
+  const samId = db.prepare("SELECT id FROM users WHERE email = 'sam@example.com'").get().id;
+  const ownProducts = db.prepare('SELECT COUNT(*) AS c FROM products WHERE seller_id = ?').get(samId);
+  const allProducts = db.prepare('SELECT COUNT(*) AS c FROM products').get();
+  assert(ownProducts.c === 1 && allProducts.c === 1, 'products scoped to owner seller in DB', `own=${ownProducts.c} all=${allProducts.c}`);
+  const orphanProducts = db.prepare(
+    'SELECT COUNT(*) AS c FROM products p LEFT JOIN users u ON u.id = p.seller_id WHERE u.id IS NULL'
+  ).get();
+  assert(orphanProducts.c === 0, 'all products reference a valid seller');
+  const editedRow = db.prepare("SELECT name FROM products WHERE id = ?").get(idMonstera);
+  assert(editedRow && editedRow.name === 'Monstera Albo', 'edited product name persisted in DB', editedRow && editedRow.name);
+
   db.close();
   require('../config/db').close();
   await new Promise((resolve) => setTimeout(resolve, 50));

@@ -1,0 +1,69 @@
+<%- include('../../partials/header', { title: 'Add Product' }) %>
+
+<div class="container narrow">
+  <div class="page-head">
+    <div>
+      <h1>Add Product</h1>
+      <p class="muted">List a new plant or gardening item in your store.</p>
+    </div>
+    <a class="btn btn-outline" href="/seller/products">&larr; Back to My Products</a>
+  </div>
+
+  <% if (Object.keys(errors || {}).length > 0) { %>
+    <div class="alert alert-error">Please fix the highlighted fields below.</div>
+  <% } %>
+
+  <div class="auth-card form-card">
+    <form method="post" action="/seller/products" novalidate>
+      <div class="field">
+        <label for="name">Product Name <span class="req">*</span></label>
+        <input class="input <%= errors.name ? 'invalid' : '' %>" type="text" id="name" name="name"
+               value="<%= values.name || '' %>" placeholder="e.g. Monstera Deliciosa">
+        <% if (errors.name) { %><span class="field-error"><%= errors.name[0] %></span><% } %>
+      </div>
+
+      <div class="field">
+        <label for="category">Category <span class="req">*</span></label>
+        <select class="input <%= errors.category ? 'invalid' : '' %>" id="category" name="category">
+          <option value="">Select a category</option>
+          <% categories.forEach(function (category) { %>
+            <option value="<%= category %>" <%= values.category === category ? 'selected' : '' %>><%= category %></option>
+          <% }) %>
+        </select>
+        <% if (errors.category) { %><span class="field-error"><%= errors.category[0] %></span><% } %>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label for="price">Price ($) <span class="req">*</span></label>
+          <input class="input <%= errors.price ? 'invalid' : '' %>" type="number" id="price" name="price"
+                 value="<%= values.price || '' %>" min="0.01" step="0.01" placeholder="0.00">
+          <% if (errors.price) { %><span class="field-error"><%= errors.price[0] %></span><% } %>
+        </div>
+        <div class="field">
+          <label for="stock">Stock Quantity <span class="req">*</span></label>
+          <input class="input <%= errors.stock ? 'invalid' : '' %>" type="number" id="stock" name="stock"
+                 value="<%= values.stock || '' %>" min="0" step="1" placeholder="0">
+          <% if (errors.stock) { %><span class="field-error"><%= errors.stock[0] %></span><% } %>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="imageUrl">Image URL</label>
+        <input class="input" type="url" id="imageUrl" name="imageUrl"
+               value="<%= values.imageUrl || '' %>" placeholder="https://example.com/plant.jpg (optional)">
+      </div>
+
+      <div class="field">
+        <label for="description">Description <span class="req">*</span></label>
+        <textarea class="input <%= errors.description ? 'invalid' : '' %>" id="description" name="description"
+                  rows="5" placeholder="Describe your plant, care instructions, size, etc."><%= values.description || '' %></textarea>
+        <% if (errors.description) { %><span class="field-error"><%= errors.description[0] %></span><% } %>
+      </div>
+
+      <button class="btn btn-primary btn-block" type="submit">Add Product</button>
+    </form>
+  </div>
+</div>
+
+<%- include('../../partials/footer') %>

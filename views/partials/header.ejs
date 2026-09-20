@@ -18,6 +18,9 @@
         <% if (currentUser) { %>
           <span class="nav-user">Hi, <%= currentUser.name %></span>
           <span class="user-badge"><%= currentUser.role %></span>
+          <% if (currentUser.role === 'SELLER') { %>
+            <a class="nav-link" href="/seller/products">My Products</a>
+          <% } %>
           <form method="post" action="/logout">
             <button class="btn btn-danger-outline btn-sm" type="submit">Logout</button>
           </form>
