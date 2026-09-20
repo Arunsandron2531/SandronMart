@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - SANDRONMART</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="page">
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="/">
+        <span class="brand-icon">🌱</span>
+        <span>SANDRONMART</span>
+      </a>
+      <nav class="nav-links">
+        <% if (currentUser) { %>
+          <span class="nav-user">Hi, <%= currentUser.name %></span>
+          <span class="user-badge"><%= currentUser.role %></span>
+          <form method="post" action="/logout">
+            <button class="btn btn-danger-outline btn-sm" type="submit">Logout</button>
+          </form>
+        <% } else { %>
+          <a class="btn btn-outline btn-sm" href="/login">Login</a>
+          <a class="btn btn-primary btn-sm" href="/register">Create Account</a>
+        <% } %>
+      </nav>
+    </div>
+  </header>
+  <main class="main">

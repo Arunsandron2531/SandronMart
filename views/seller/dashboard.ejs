@@ -1,0 +1,33 @@
+<%- include('../partials/header', { title: 'Seller Dashboard' }) %>
+
+<div class="container">
+  <section class="dash-hero">
+    <h1>SANDRONMART Seller Dashboard</h1>
+    <p>Welcome, <%= user.name %>. Manage your store and grow your green business.</p>
+    <span class="user-badge on-dark">SELLER</span>
+  </section>
+
+  <section class="dash-grid">
+    <div class="dash-card">
+      <div class="card-icon">🌱</div>
+      <h3>My Store</h3>
+      <p>List plants, seeds, and tools for buyers to discover (coming soon).</p>
+    </div>
+    <div class="dash-card">
+      <div class="card-icon">📈</div>
+      <h3>Sales</h3>
+      <p>Track your products and revenue once selling is enabled.</p>
+    </div>
+    <div class="dash-card">
+      <div class="card-icon">🔒</div>
+      <h3>Account</h3>
+      <p><%= user.email %></p>
+    </div>
+  </section>
+
+  <div class="placeholder">
+    Marketplace features (products, inventory, orders, payments) are coming soon.
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,17 @@
+<%- include('partials/header', { title: 'Access Denied' }) %>
+
+<div class="container">
+  <section class="error-page">
+    <div class="code">403</div>
+    <h1>Access Denied</h1>
+    <p>Sorry, you don't have permission to view this page. Your account does not have the required role for this area.</p>
+    <div class="error-actions">
+      <a class="btn btn-primary" href="/">Back to Home</a>
+      <form method="post" action="/logout">
+        <button class="btn btn-outline" type="submit">Logout</button>
+      </form>
+    </div>
+  </section>
+</div>
+
+<%- include('partials/footer') %>

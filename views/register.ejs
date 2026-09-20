@@ -1,0 +1,109 @@
+<%- include('partials/header', { title: 'Create Account' }) %>
+
+<div class="auth-wrap">
+  <aside class="auth-side">
+    <div class="brand-mark">🌱</div>
+    <h2>Join SANDRONMART.</h2>
+    <p>Create your account as a Buyer to browse plants and gardening supplies, or as a Seller to open your own green store.</p>
+    <div class="points">
+      <div class="point"><span>✓</span> Buyer &amp; Seller accounts</div>
+      <div class="point"><span>✓</span> Secure password hashing</div>
+      <div class="point"><span>✓</span> Fast, one-step signup</div>
+    </div>
+  </aside>
+
+  <section class="auth-main">
+    <div class="auth-card">
+      <h1 class="auth-title">Create Account</h1>
+      <p class="auth-sub">Fill in your details to get started.</p>
+
+      <% if (Object.keys(errors || {}).length > 0) { %>
+        <div class="alert alert-error">Please fix the highlighted fields below.</div>
+      <% } %>
+
+      <form method="post" action="/register" novalidate>
+        <div class="field">
+          <label for="fullName">Full Name <span class="req">*</span></label>
+          <input class="input <%= errors && errors.fullName ? 'invalid' : '' %>" type="text"
+                 id="fullName" name="fullName" value="<%= form.fullName || '' %>"
+                 placeholder="Jane Doe">
+          <% if (errors && errors.fullName) { %>
+            <span class="field-error"><%= errors.fullName[0] %></span>
+          <% } %>
+        </div>
+
+        <div class="field">
+          <label for="email">Email <span class="req">*</span></label>
+          <input class="input <%= errors && errors.email ? 'invalid' : '' %>" type="email"
+                 id="email" name="email" value="<%= form.email || '' %>"
+                 placeholder="you@example.com">
+          <% if (errors && errors.email) { %>
+            <span class="field-error"><%= errors.email[0] %></span>
+          <% } %>
+        </div>
+
+        <div class="field">
+          <label for="phone">Phone <span class="req">*</span></label>
+          <input class="input <%= errors && errors.phone ? 'invalid' : '' %>" type="tel"
+                 id="phone" name="phone" value="<%= form.phone || '' %>"
+                 placeholder="+254712345678">
+          <% if (errors && errors.phone) { %>
+            <span class="field-error"><%= errors.phone[0] %></span>
+          <% } %>
+        </div>
+
+        <div class="field">
+          <label for="password">Password <span class="req">*</span></label>
+          <input class="input <%= errors && errors.password ? 'invalid' : '' %>" type="password"
+                 id="password" name="password" placeholder="Minimum 6 characters">
+          <% if (errors && errors.password) { %>
+            <span class="field-error"><%= errors.password[0] %></span>
+          <% } %>
+        </div>
+
+        <div class="field">
+          <label for="confirmPassword">Confirm Password <span class="req">*</span></label>
+          <input class="input <%= errors && errors.confirmPassword ? 'invalid' : '' %>" type="password"
+                 id="confirmPassword" name="confirmPassword" placeholder="Re-enter your password">
+          <% if (errors && errors.confirmPassword) { %>
+            <span class="field-error"><%= errors.confirmPassword[0] %></span>
+          <% } %>
+        </div>
+
+        <div class="field">
+          <label>I want to join as <span class="req">*</span></label>
+          <div class="radio-row">
+            <label class="radio-card <%= form.role === 'BUYER' ? 'selected' : '' %>" id="card-buyer">
+              <input type="radio" name="role" value="BUYER" <%= form.role === 'BUYER' ? 'checked' : '' %>>
+              <span class="radio-label">Buyer</span>
+              <span class="radio-desc">Shop for plants</span>
+            </label>
+            <label class="radio-card <%= form.role === 'SELLER' ? 'selected' : '' %>" id="card-seller">
+              <input type="radio" name="role" value="SELLER" <%= form.role === 'SELLER' ? 'checked' : '' %>>
+              <span class="radio-label">Seller</span>
+              <span class="radio-desc">Sell your plants</span>
+            </label>
+          </div>
+          <% if (errors && errors.role) { %>
+            <span class="field-error"><%= errors.role[0] %></span>
+          <% } %>
+        </div>
+
+        <button class="btn btn-primary btn-block" type="submit">Create Account</button>
+      </form>
+
+      <p class="form-hint pt-12 center">
+        Already have an account?
+        <a href="/login">Back to Login</a>
+      </p>
+    </div>
+  </section>
+</div>
+
+<%- include('partials/footer') %>
+<script src="/js/validation.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    RegisterValidation.init();
+  });
+</script>

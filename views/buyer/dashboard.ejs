@@ -1,0 +1,33 @@
+<%- include('../partials/header', { title: 'Buyer Dashboard' }) %>
+
+<div class="container">
+  <section class="dash-hero">
+    <h1>SANDRONMART Buyer Dashboard</h1>
+    <p>Welcome, <%= user.name %>. Browse plants and gardening supplies from our sellers.</p>
+    <span class="user-badge on-dark">BUYER</span>
+  </section>
+
+  <section class="dash-grid">
+    <div class="dash-card">
+      <div class="card-icon">🌱</div>
+      <h3>Discover Plants</h3>
+      <p>Shop indoor and outdoor plants from trusted sellers (coming soon).</p>
+    </div>
+    <div class="dash-card">
+      <div class="card-icon">🔒</div>
+      <h3>My Account</h3>
+      <p><%= user.email %></p>
+    </div>
+    <div class="dash-card">
+      <div class="card-icon">🛒</div>
+      <h3>Orders</h3>
+      <p>Track your purchases once shopping is enabled.</p>
+    </div>
+  </section>
+
+  <div class="placeholder">
+    Marketplace features (products, cart, checkout, orders, wishlist) are coming soon.
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

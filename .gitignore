@@ -1,5 +1,5 @@
-﻿target/
-*.class
+﻿node_modules/
+data/
 *.log
-.idea/
-.vscode/
+.env
+.DS_Store
