@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seller Dashboard - SANDRONMART</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="page">
+    <header class="site-header">
+        <div class="container nav">
+            <a class="brand" th:href="@{/}">
+                <span class="brand-icon">&#127807;</span>
+                <span>SANDRONMART</span>
+            </a>
+            <nav class="nav-links">
+                <span class="nav-user" th:text="${'Hi, ' + user.fullName}">Hi</span>
+                <span class="user-badge">Seller</span>
+                <form method="post" th:action="@{/logout}">
+                    <button class="btn btn-danger-outline btn-sm" type="submit">Logout</button>
+                </form>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <section class="dash-hero">
+                <h1>SANDRONMART Seller Dashboard</h1>
+                <p>Welcome, <span th:text="${user.fullName}"></span>. Manage your store and grow your green business.</p>
+                <span class="user-badge" style="background:rgba(255,255,255,0.18); color:#fff;">SELLER</span>
+            </section>
+
+            <section class="dash-grid">
+                <div class="dash-card">
+                    <div class="card-icon">&#127807;</div>
+                    <h3>My Store</h3>
+                    <p>List plants, seeds, and tools for buyers to discover (coming soon).</p>
+                </div>
+                <div class="dash-card">
+                    <div class="card-icon">&#128200;</div>
+                    <h3>Sales</h3>
+                    <p>Track your products and revenue once selling is enabled.</p>
+                </div>
+                <div class="dash-card">
+                    <div class="card-icon">&#128274;</div>
+                    <h3>Account</h3>
+                    <p><span th:text="${user.email}"></span> &middot; <span th:text="${user.phoneNumber}"></span></p>
+                </div>
+            </section>
+
+            <div class="placeholder">
+                Marketplace features (products, inventory, orders, payments) are coming soon.
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            &copy; 2026 <strong>SANDRONMART</strong> &middot; Plants &amp; Gardening Marketplace
+        </div>
+    </footer>
+</div>
+</body>
+</html>

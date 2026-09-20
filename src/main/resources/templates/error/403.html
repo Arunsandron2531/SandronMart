@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Denied - SANDRONMART</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="page">
+    <header class="site-header">
+        <div class="container nav">
+            <a class="brand" th:href="@{/}">
+                <span class="brand-icon">&#127807;</span>
+                <span>SANDRONMART</span>
+            </a>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <section class="error-page">
+                <div class="code">403</div>
+                <h1>Access Denied</h1>
+                <p>Sorry, you don't have permission to view this page. Your account does not have the required role for this area.</p>
+                <div style="display:flex; gap:14px; flex-wrap:wrap; justify-content:center;">
+                    <a class="btn btn-primary" th:href="@{/}">Back to Home</a>
+                    <form method="post" th:action="@{/logout}">
+                        <button class="btn btn-outline" type="submit">Logout</button>
+                    </form>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            &copy; 2026 <strong>SANDRONMART</strong> &middot; Plants &amp; Gardening Marketplace
+        </div>
+    </footer>
+</div>
+</body>
+</html>
