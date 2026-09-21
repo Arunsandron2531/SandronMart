@@ -75,6 +75,8 @@ Key points:
 - SQLite needs a **persistent disk** (Render Mounted Disk); `DB_PATH` must point inside it.
   (Render free instances do not support disks — use a paid instance for persistence.)
 - Product images are **remote URLs** (no file uploads), so no extra object storage is required today.
+  Products without an image automatically show **category-based default images** stored locally in
+  `public/assets/images/products/` (served as static files everywhere — localhost, GitHub, Render).
 - Session cookies are `secure` only when `NODE_ENV=production`; sessions are stored in SQLite.
 
 ---

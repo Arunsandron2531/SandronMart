@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" role="img" aria-label="Seeds">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBEFDD"/>
+      <stop offset="1" stop-color="#E8C482"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="480" fill="url(#bg)"/>
+  <circle cx="320" cy="210" r="150" fill="#FFFFFF" opacity="0.4"/>
+  <text x="320" y="270" font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, 'Segoe UI', sans-serif" font-size="150" text-anchor="middle">🌱</text>
+  <text x="320" y="430" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="46" font-weight="600" text-anchor="middle" fill="#6B4B16">Seeds</text>
+</svg>

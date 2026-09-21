@@ -18,13 +18,9 @@
           <% order.items.forEach(function (item) { %>
             <div class="summary-item">
               <div class="summary-thumb">
-                <% if (item.image_url) { %>
-                  <img src="<%= item.image_url %>" alt="" loading="lazy"
-                       onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
-                  <div class="summary-fallback" style="display:none;">🌱</div>
-                <% } else { %>
-                  <div class="summary-fallback">🌱</div>
-                <% } %>
+                <img src="<%= productImage(item) %>" alt="" loading="lazy"
+                     data-default-image="<%= defaultProductImage(item.category) %>">
+                <div class="summary-fallback image-fallback" style="display:none;">🌱</div>
               </div>
               <div class="summary-info">
                 <div class="summary-name"><%= item.name %></div>

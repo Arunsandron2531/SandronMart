@@ -27,13 +27,9 @@
       <% items.forEach(function (item) { %>
         <div class="cart-item">
           <div class="cart-thumb">
-            <% if (item.image_url) { %>
-              <img class="cart-image" src="<%= item.image_url %>" alt="<%= item.name %>"
-                   loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
-              <div class="cart-image cart-image-fallback" style="display:none;">🌱</div>
-            <% } else { %>
-              <div class="cart-image cart-image-fallback">🌱</div>
-            <% } %>
+            <img class="cart-image" src="<%= productImage(item) %>" alt="<%= item.name %>"
+                 loading="lazy" data-default-image="<%= defaultProductImage(item.category) %>">
+            <div class="cart-image cart-image-fallback image-fallback" style="display:none;">🌱</div>
           </div>
           <div class="cart-info">
             <span class="product-category"><%= item.category %></span>

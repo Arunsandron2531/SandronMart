@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" role="img" aria-label="Pots and Planters">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F6E7DB"/>
+      <stop offset="1" stop-color="#D9A879"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="480" fill="url(#bg)"/>
+  <circle cx="320" cy="210" r="150" fill="#FFFFFF" opacity="0.4"/>
+  <text x="320" y="265" font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, 'Segoe UI', sans-serif" font-size="150" text-anchor="middle">🏺</text>
+  <text x="320" y="430" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="46" font-weight="600" text-anchor="middle" fill="#7A4A24">Pots &amp; Planters</text>
+</svg>

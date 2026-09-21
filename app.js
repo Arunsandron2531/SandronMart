@@ -14,6 +14,7 @@ const {
   computeDeliveryWindow,
   statusLabel,
 } = require('./utils/delivery');
+const { productImage, defaultProductImage } = require('./utils/product-images');
 
 const app = express();
 
@@ -77,6 +78,8 @@ app.use((req, res, next) => {
   res.locals.formatLongDate = formatLongDate;
   res.locals.computeDeliveryWindow = computeDeliveryWindow;
   res.locals.statusLabel = statusLabel;
+  res.locals.productImage = productImage;
+  res.locals.defaultProductImage = defaultProductImage;
   if (res.locals.currentUser && res.locals.currentUser.role === 'BUYER') {
     const row = db.prepare(
       'SELECT COALESCE(SUM(quantity), 0) AS count FROM cart_items WHERE buyer_id = ?'

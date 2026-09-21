@@ -27,13 +27,9 @@
     <div class="product-grid">
       <% products.forEach(function (product) { %>
         <div class="product-card">
-          <% if (product.image_url) { %>
-            <img class="product-thumb" src="<%= product.image_url %>" alt="<%= product.name %>"
-                 loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
-            <div class="product-thumb product-thumb-fallback" style="display:none;">🌱</div>
-          <% } else { %>
-            <div class="product-thumb product-thumb-fallback">🌱</div>
-          <% } %>
+          <img class="product-thumb" src="<%= productImage(product) %>" alt="<%= product.name %>"
+               loading="lazy" data-default-image="<%= defaultProductImage(product.category) %>">
+          <div class="product-thumb product-thumb-fallback image-fallback" style="display:none;">🌱</div>
           <div class="product-body">
             <div class="product-meta">
               <span class="product-category"><%= product.category %></span>
