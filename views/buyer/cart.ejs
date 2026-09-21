@@ -38,7 +38,10 @@
           <div class="cart-info">
             <span class="product-category"><%= item.category %></span>
             <h3 class="product-name"><%= item.name %></h3>
-            <div class="cart-unit">$<%= Number(item.price).toFixed(2) %> each</div>
+            <div class="cart-unit"><%= formatINR(item.price) %> each</div>
+            <% if (item.quantity >= (item.stock || 0)) { %>
+              <div class="cart-stock-warn">Only <%= item.stock %> items available.</div>
+            <% } %>
           </div>
           <div class="cart-qty">
             <form class="qty-form" method="post" action="/buyer/cart/<%= item.cart_id %>/update">
@@ -51,7 +54,7 @@
               <button class="qty-btn" type="submit" aria-label="Increase quantity">+</button>
             </form>
           </div>
-          <div class="cart-subtotal">$<%= Number(item.price * item.quantity).toFixed(2) %></div>
+          <div class="cart-subtotal"><%= formatINR(item.price * item.quantity) %></div>
           <form class="cart-remove" method="post" action="/buyer/cart/<%= item.cart_id %>/remove">
             <button class="btn btn-danger-outline btn-sm" type="submit">Remove</button>
           </form>
@@ -60,10 +63,30 @@
     </div>
 
     <div class="cart-summary">
-      <div class="cart-total">Total: <strong>$<%= total.toFixed(2) %></strong></div>
+      <div class="cart-breakdown">
+        <div class="cart-line">
+          <span>Subtotal</span>
+          <span><%= formatINR(subtotal) %></span>
+        </div>
+        <div class="cart-line">
+          <span>Delivery</span>
+          <span>
+            <% if (deliveryCharge === 0) { %>
+              <span class="free-badge">FREE</span>
+              <span class="cart-stock-warn">(Free delivery on orders above <%= formatINR(freeDeliveryThreshold) %>)</span>
+            <% } else { %>
+              <%= formatINR(deliveryCharge) %>
+            <% } %>
+          </span>
+        </div>
+        <div class="cart-line cart-line-total">
+          <span>Total</span>
+          <span class="cart-total"><strong><%= formatINR(total) %></strong></span>
+        </div>
+      </div>
       <div class="cart-summary-actions">
         <a class="btn btn-outline" href="/buyer/products">Continue Shopping</a>
-        <button class="btn btn-primary" type="button" disabled title="Checkout coming soon">Checkout</button>
+        <a class="btn btn-primary" href="/buyer/checkout">Proceed to Checkout</a>
       </div>
     </div>
   <% } %>

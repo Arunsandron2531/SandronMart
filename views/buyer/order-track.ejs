@@ -1,0 +1,67 @@
+<%- include('../partials/header', { title: 'Track Order' }) %>
+
+<div class="container">
+  <div class="page-head">
+    <div>
+      <h1>Track Order</h1>
+      <p class="muted">Order <strong><%= order.order_number %></strong> &middot; <span class="status-badge status-<%= order.status.toLowerCase() %>"><%= order.statusLabel %></span></p>
+    </div>
+    <a class="btn btn-outline" href="/buyer/orders/<%= order.id %>">Order Details</a>
+  </div>
+
+  <div class="track-layout">
+    <div class="timeline">
+      <% timeline.forEach(function (step, index) { %>
+        <div class="timeline-step <%= step.reached ? 'done' : '' %> <%= step.status === order.status ? 'current' : '' %>">
+          <div class="timeline-marker"><% if (step.reached) { %>✓<% } else { %>○<% } %></div>
+          <div class="timeline-content">
+            <div class="timeline-label"><%= step.label %></div>
+            <% if (step.reached) { %>
+              <div class="timeline-at"><%= step.at %></div>
+            <% } else { %>
+              <div class="timeline-expected"><%= step.expected %></div>
+            <% } %>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+
+    <aside class="track-side">
+      <div class="order-summary-card">
+        <h2 class="section-title">Delivery Summary</h2>
+        <div class="order-meta stack">
+          <div class="order-meta-line">
+            <span>Order Date</span>
+            <span><%= order.orderDateLabel %></span>
+          </div>
+          <div class="order-meta-line">
+            <span>Expected Delivery</span>
+            <strong><%= order.deliveryLabel %></strong>
+          </div>
+          <div class="order-meta-line">
+            <span>Preferred Time</span>
+            <span><%= order.delivery_time_slot %></span>
+          </div>
+          <div class="order-meta-line">
+            <span>Payment</span>
+            <span><%= order.payment_method === 'COD' ? 'Cash on Delivery' : (order.payment_method === 'UPI' ? 'UPI' : 'Credit / Debit Card') %></span>
+          </div>
+          <div class="order-meta-line">
+            <span>Total</span>
+            <strong><%= formatINR(order.total) %></strong>
+          </div>
+        </div>
+
+        <h3 class="track-address-title">Deliver To</h3>
+        <div class="address-summary">
+          <strong><%= order.full_name %></strong>
+          <div><%= order.house_number %>, <%= order.street %></div>
+          <div><%= order.city %>, <%= order.state %> - <%= order.pincode %></div>
+          <div class="muted">Mobile: <%= order.phone %></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

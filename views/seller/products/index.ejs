@@ -42,7 +42,7 @@
               </span>
             </div>
             <h3 class="product-name"><%= product.name %></h3>
-            <div class="product-price">$<%= Number(product.price).toFixed(2) %></div>
+            <div class="product-price"><%= formatINR(product.price) %></div>
             <p class="product-desc"><%= product.description %></p>
             <div class="product-actions">
               <a class="btn btn-outline btn-sm" href="/seller/products/<%= product.id %>/edit">Edit</a>

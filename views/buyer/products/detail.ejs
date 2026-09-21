@@ -15,7 +15,7 @@
     <div class="detail-info">
       <span class="product-category"><%= product.category %></span>
       <h1 class="detail-title"><%= product.name %></h1>
-      <div class="detail-price">$<%= Number(product.price).toFixed(2) %></div>
+      <div class="detail-price"><%= formatINR(product.price) %></div>
       <span class="stock-chip <%= product.stock === 0 ? 'stock-out' : 'stock-in' %>">
         <%= product.stock === 0 ? 'Out of stock' : product.stock + ' in stock' %>
       </span>
@@ -23,21 +23,24 @@
       <% if (product.seller_name) { %>
         <p class="detail-seller">Sold by <strong><%= product.seller_name %></strong></p>
       <% } %>
-      <form class="detail-actions" method="post" action="/buyer/cart/add">
-        <input type="hidden" name="product_id" value="<%= product.id %>">
-        <label class="qty-field">
-          <span class="qty-label">Quantity</span>
-          <input class="input qty-input" type="number" name="quantity" value="1" min="1"
-                 max="<%= product.stock === 0 ? 1 : product.stock %>">
-        </label>
-        <% if (product.stock === 0) { %>
-          <button class="btn btn-primary" type="button" disabled>Out of stock</button>
-        <% } else { %>
+      <% if (product.stock === 0) { %>
+        <p class="detail-out">Out of stock. This product is currently unavailable.</p>
+      <% } else { %>
+        <form class="detail-actions" method="post" action="/buyer/cart/add">
+          <input type="hidden" name="product_id" value="<%= product.id %>">
+          <div class="qty-control">
+            <span class="qty-label">Quantity</span>
+            <button class="qty-btn js-qty-minus" type="button" aria-label="Decrease quantity">&minus;</button>
+            <input class="input qty-input" type="number" name="quantity" value="1" min="1"
+                   max="<%= product.stock %>" id="quantity-input">
+            <button class="qty-btn js-qty-plus" type="button" aria-label="Increase quantity">+</button>
+          </div>
           <button class="btn btn-primary" type="submit">Add to Cart</button>
-        <% } %>
-      </form>
+        </form>
+      <% } %>
       <a class="btn btn-outline" href="/buyer/products">&larr; Back to products</a>
-      <p class="form-hint">Stock: <%= product.stock %> available. Checkout is coming soon.</p>
+      <% const windowEstimate = computeDeliveryWindow(new Date()); %>
+      <p class="form-hint">Delivery estimate: <%= formatDayMonth(windowEstimate.start) %> &ndash; <%= formatDayMonth(windowEstimate.end) %>. <a href="/buyer/cart">View cart</a></p>
     </div>
   </div>
 </div>

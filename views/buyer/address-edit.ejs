@@ -1,0 +1,87 @@
+<%- include('../partials/header', { title: 'Edit Address' }) %>
+
+<div class="container narrow">
+  <div class="page-head">
+    <div>
+      <h1>Edit Address</h1>
+      <p class="muted">Update your delivery details.</p>
+    </div>
+    <a class="btn btn-outline" href="/buyer/addresses">&larr; Back to Saved Addresses</a>
+  </div>
+
+  <% if (Object.keys(errors).length > 0) { %>
+    <div class="alert alert-error">Please fix the highlighted fields below.</div>
+  <% } %>
+
+  <div class="auth-card form-card">
+    <form method="post" action="/buyer/addresses/<%= address.id %>/update" novalidate>
+      <div class="form-row">
+        <div class="field">
+          <label for="full_name">Full Name <span class="req">*</span></label>
+          <input class="input <%= errors.full_name ? 'invalid' : '' %>" type="text" id="full_name" name="full_name"
+                 value="<%= values.full_name || '' %>" placeholder="Arun">
+          <% if (errors.full_name) { %><span class="field-error"><%= errors.full_name[0] %></span><% } %>
+        </div>
+        <div class="field">
+          <label for="phone">Mobile Number <span class="req">*</span></label>
+          <input class="input <%= errors.phone ? 'invalid' : '' %>" type="tel" id="phone" name="phone"
+                 maxlength="10" value="<%= values.phone || '' %>" placeholder="9876543210">
+          <% if (errors.phone) { %><span class="field-error"><%= errors.phone[0] %></span><% } %>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="house_number">House / Flat / Door Number <span class="req">*</span></label>
+          <input class="input <%= errors.house_number ? 'invalid' : '' %>" type="text" id="house_number" name="house_number"
+                 value="<%= values.house_number || '' %>" placeholder="12/4">
+          <% if (errors.house_number) { %><span class="field-error"><%= errors.house_number[0] %></span><% } %>
+        </div>
+        <div class="field">
+          <label for="street">Street / Area <span class="req">*</span></label>
+          <input class="input <%= errors.street ? 'invalid' : '' %>" type="text" id="street" name="street"
+                 value="<%= values.street || '' %>" placeholder="Gandhi Street">
+          <% if (errors.street) { %><span class="field-error"><%= errors.street[0] %></span><% } %>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="landmark">Landmark</label>
+          <input class="input" type="text" id="landmark" name="landmark"
+                 value="<%= values.landmark || '' %>" placeholder="Near Bus Stand">
+        </div>
+        <div class="field">
+          <label for="city">Village / Town / City <span class="req">*</span></label>
+          <input class="input <%= errors.city ? 'invalid' : '' %>" type="text" id="city" name="city"
+                 value="<%= values.city || '' %>" placeholder="Kanchipuram">
+          <% if (errors.city) { %><span class="field-error"><%= errors.city[0] %></span><% } %>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="district">District</label>
+          <input class="input" type="text" id="district" name="district"
+                 value="<%= values.district || '' %>" placeholder="Kanchipuram">
+        </div>
+        <div class="field">
+          <label for="state">State <span class="req">*</span></label>
+          <select class="input <%= errors.state ? 'invalid' : '' %>" id="state" name="state">
+            <option value="">Select State</option>
+            <% states.forEach(function (state) { %>
+              <option value="<%= state %>" <%= state === (values.state || '') ? 'selected' : '' %>><%= state %></option>
+            <% }) %>
+          </select>
+          <% if (errors.state) { %><span class="field-error"><%= errors.state[0] %></span><% } %>
+        </div>
+      </div>
+      <div class="field">
+        <label for="pincode">Pincode <span class="req">*</span></label>
+        <input class="input <%= errors.pincode ? 'invalid' : '' %>" type="text" id="pincode" name="pincode"
+               maxlength="6" inputmode="numeric" value="<%= values.pincode || '' %>" placeholder="631501">
+        <% if (errors.pincode) { %><span class="field-error"><%= errors.pincode[0] %></span><% } %>
+      </div>
+      <button class="btn btn-primary btn-block" type="submit">Update Address</button>
+    </form>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

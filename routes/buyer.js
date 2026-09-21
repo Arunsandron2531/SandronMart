@@ -100,10 +100,4 @@ router.get('/buyer/account', (req, res) => {
   });
 });
 
-router.get('/buyer/orders', (req, res) => {
-  res.render('buyer/orders', {
-    title: 'My Orders',
-  });
-});
-
 module.exports = router;

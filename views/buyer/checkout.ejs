@@ -1,0 +1,238 @@
+<%- include('../partials/header', { title: 'Checkout' }) %>
+
+<div class="container checkout-wrap">
+  <div class="page-head">
+    <div>
+      <h1>Checkout</h1>
+      <p class="muted">Confirm your delivery details and place your order.</p>
+    </div>
+    <a class="btn btn-outline" href="/buyer/cart">&larr; Back to Cart</a>
+  </div>
+
+  <% if (errors.general) { %>
+    <div class="alert alert-error"><%= errors.general[0] %></div>
+  <% } %>
+
+  <form class="checkout-form" method="post" action="/buyer/checkout" id="checkout-form" novalidate>
+    <div class="checkout-grid">
+
+      <div class="checkout-main">
+
+        <!-- ============ 1. DELIVERY ADDRESS ============ -->
+        <section class="checkout-section">
+          <h2 class="section-title">1. Delivery Address</h2>
+
+          <% if (addresses.length > 0) { %>
+            <div class="address-list">
+              <% addresses.forEach(function (addr) { %>
+                <label class="address-card">
+                  <input type="radio" name="address_id" value="<%= addr.id %>"
+                         <%= (!values.address_id && addr.is_default) || String(values.address_id) === String(addr.id) ? 'checked' : '' %>>
+                  <div class="address-body">
+                    <% if (addr.is_default) { %><span class="free-badge">Default</span><% } %>
+                    <strong><%= addr.full_name %></strong>
+                    <div><%= addr.house_number %>, <%= addr.street %></div>
+                    <% if (addr.landmark) { %><div>Near <%= addr.landmark %></div><% } %>
+                    <div><%= addr.city %><% if (addr.district) { %>, <%= addr.district %><% } %></div>
+                    <div><%= addr.state %> - <%= addr.pincode %></div>
+                    <div class="muted">Mobile: <%= addr.phone %></div>
+                  </div>
+                </label>
+              <% }) %>
+              <label class="address-card add-new">
+                <input type="radio" name="address_id" value="new" <%= values.address_id === 'new' || addresses.length === 0 ? 'checked' : '' %>>
+                <div class="address-body">
+                  <strong>+ Add New Address</strong>
+                  <div class="muted">Enter a new delivery address.</div>
+                </div>
+              </label>
+            </div>
+            <a class="link-small" href="/buyer/addresses">Manage saved addresses</a>
+          <% } else { %>
+            <input type="hidden" name="address_id" value="new">
+            <a class="link-small" href="/buyer/addresses">Manage saved addresses</a>
+          <% } %>
+
+          <div class="address-fields" id="new-address-fields" <%= (addresses.length > 0 && values.address_id !== 'new') ? 'hidden' : '' %>>
+            <% if (addresses.length > 0) { %><p class="form-hint">Fill these details to add a new delivery address.</p><% } %>
+            <div class="form-row">
+              <div class="field">
+                <label for="full_name">Full Name <span class="req">*</span></label>
+                <input class="input <%= errors.full_name ? 'invalid' : '' %>" type="text" id="full_name" name="full_name"
+                       value="<%= values.full_name || '' %>" placeholder="Arun">
+                <% if (errors.full_name) { %><span class="field-error"><%= errors.full_name[0] %></span><% } %>
+              </div>
+              <div class="field">
+                <label for="phone">Mobile Number <span class="req">*</span></label>
+                <input class="input <%= errors.phone ? 'invalid' : '' %>" type="tel" id="phone" name="phone"
+                       maxlength="10" value="<%= values.phone || '' %>" placeholder="9876543210">
+                <% if (errors.phone) { %><span class="field-error"><%= errors.phone[0] %></span><% } %>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label for="house_number">House / Flat / Door Number <span class="req">*</span></label>
+                <input class="input <%= errors.house_number ? 'invalid' : '' %>" type="text" id="house_number" name="house_number"
+                       value="<%= values.house_number || '' %>" placeholder="12/4">
+                <% if (errors.house_number) { %><span class="field-error"><%= errors.house_number[0] %></span><% } %>
+              </div>
+              <div class="field">
+                <label for="street">Street / Area <span class="req">*</span></label>
+                <input class="input <%= errors.street ? 'invalid' : '' %>" type="text" id="street" name="street"
+                       value="<%= values.street || '' %>" placeholder="Gandhi Street">
+                <% if (errors.street) { %><span class="field-error"><%= errors.street[0] %></span><% } %>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label for="landmark">Landmark</label>
+                <input class="input" type="text" id="landmark" name="landmark"
+                       value="<%= values.landmark || '' %>" placeholder="Near Bus Stand">
+              </div>
+              <div class="field">
+                <label for="city">Village / Town / City <span class="req">*</span></label>
+                <input class="input <%= errors.city ? 'invalid' : '' %>" type="text" id="city" name="city"
+                       value="<%= values.city || '' %>" placeholder="Kanchipuram">
+                <% if (errors.city) { %><span class="field-error"><%= errors.city[0] %></span><% } %>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label for="district">District</label>
+                <input class="input" type="text" id="district" name="district"
+                       value="<%= values.district || '' %>" placeholder="Kanchipuram">
+              </div>
+              <div class="field">
+                <label for="state">State <span class="req">*</span></label>
+                <select class="input <%= errors.state ? 'invalid' : '' %>" id="state" name="state">
+                  <option value="">Select State</option>
+                  <% states.forEach(function (state) { %>
+                    <option value="<%= state %>" <%= state === (values.state || '') ? 'selected' : '' %>><%= state %></option>
+                  <% }) %>
+                </select>
+                <% if (errors.state) { %><span class="field-error"><%= errors.state[0] %></span><% } %>
+              </div>
+            </div>
+            <div class="field">
+              <label for="pincode">Pincode <span class="req">*</span></label>
+              <input class="input <%= errors.pincode ? 'invalid' : '' %>" type="text" id="pincode" name="pincode"
+                     maxlength="6" inputmode="numeric" value="<%= values.pincode || '' %>" placeholder="631501">
+              <% if (errors.pincode) { %><span class="field-error"><%= errors.pincode[0] %></span><% } %>
+            </div>
+            <label class="check-row">
+              <input type="checkbox" name="save_address" value="1" <%= values.save_address === '1' ? 'checked' : '' %>>
+              <span>Save this address for next time</span>
+            </label>
+          </div>
+        </section>
+
+        <!-- ============ 2. DELIVERY DATE ============ -->
+        <section class="checkout-section">
+          <h2 class="section-title">2. Expected Delivery</h2>
+          <p class="delivery-date">
+            <span class="date-range"><%= formatDateRange(deliveryWindow.start, deliveryWindow.end) %></span>
+            <span class="muted">We will deliver your order between these dates.</span>
+          </p>
+        </section>
+
+        <!-- ============ 3. DELIVERY TIME SLOT ============ -->
+        <section class="checkout-section">
+          <h2 class="section-title">3. Preferred Delivery Time</h2>
+          <% if (errors.delivery_time_slot) { %><div class="alert alert-error"><%= errors.delivery_time_slot[0] %></div><% } %>
+          <div class="slot-list">
+            <% timeSlots.forEach(function (slot) { %>
+              <label class="slot-card">
+                <input type="radio" name="delivery_time_slot" value="<%= slot %>" <%= slot === values.delivery_time_slot ? 'checked' : '' %>>
+                <span class="slot-radio"></span>
+                <span class="slot-time"><%= slot %></span>
+              </label>
+            <% }) %>
+          </div>
+        </section>
+
+        <!-- ============ 4. PAYMENT METHOD ============ -->
+        <section class="checkout-section">
+          <h2 class="section-title">4. Payment Method</h2>
+          <% if (errors.payment_method) { %><div class="alert alert-error"><%= errors.payment_method[0] %></div><% } %>
+          <div class="payment-list">
+            <% paymentMethods.forEach(function (method) { %>
+              <label class="payment-card">
+                <input type="radio" name="payment_method" value="<%= method.code %>" <%= method.code === values.payment_method ? 'checked' : '' %>>
+                <div class="payment-body">
+                  <strong><%= method.label %></strong>
+                  <div class="muted"><%= method.description %></div>
+                </div>
+              </label>
+            <% }) %>
+          </div>
+          <div id="payment-note" class="payment-note" hidden></div>
+          <p class="form-hint">This is a simulated payment for your college project. No real money is charged.</p>
+        </section>
+
+      </div>
+
+      <!-- ============ ORDER SUMMARY ============ -->
+      <aside class="checkout-side">
+        <div class="order-summary-card">
+          <h2 class="section-title">Order Summary</h2>
+          <div class="summary-items">
+            <% items.forEach(function (item) { %>
+              <div class="summary-item">
+                <div class="summary-thumb">
+                  <% if (item.image_url) { %>
+                    <img src="<%= item.image_url %>" alt="" loading="lazy"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+                    <div class="summary-fallback" style="display:none;">🌱</div>
+                  <% } else { %>
+                    <div class="summary-fallback">🌱</div>
+                  <% } %>
+                </div>
+                <div class="summary-info">
+                  <div class="summary-name"><%= item.name %></div>
+                  <div class="muted"><%= formatINR(item.price) %> &times; <%= item.quantity %></div>
+                </div>
+                <div class="summary-price"><%= formatINR(item.price * item.quantity) %></div>
+              </div>
+            <% }) %>
+          </div>
+
+          <div class="summary-lines">
+            <div class="summary-line">
+              <span>Item Subtotal</span>
+              <span><%= formatINR(subtotal) %></span>
+            </div>
+            <div class="summary-line">
+              <span>Delivery</span>
+              <span>
+                <% if (deliveryCharge === 0) { %>
+                  <span class="free-badge">FREE</span>
+                <% } else { %>
+                  <%= formatINR(deliveryCharge) %>
+                <% } %>
+              </span>
+            </div>
+            <% if (deliveryCharge > 0) { %>
+              <div class="summary-hint">Add <%= formatINR(freeDeliveryThreshold - subtotal) %> more for FREE delivery.</div>
+            <% } %>
+            <div class="summary-line grand-total">
+              <span>Grand Total</span>
+              <span><strong><%= formatINR(total) %></strong></span>
+            </div>
+          </div>
+
+          <p class="delivery-summary">
+            <strong>Expected Delivery</strong><br>
+            <%= formatDateRange(deliveryWindow.start, deliveryWindow.end) %><br>
+            <span class="muted">3&ndash;7 day delivery window</span>
+          </p>
+
+          <button class="btn btn-primary btn-block" type="submit" id="place-order-btn">Place Order</button>
+        </div>
+      </aside>
+
+    </div>
+  </form>
+</div>
+
+<%- include('../partials/footer') %>
+<script src="/js/checkout.js"></script>

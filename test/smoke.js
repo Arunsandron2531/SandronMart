@@ -8,6 +8,13 @@ process.env.SESSION_SECRET = 'smoke-test-secret';
 process.env.NODE_ENV = 'test';
 
 const app = require('../app');
+const {
+  addDays,
+  toISODate,
+  computeDeliveryWindow,
+  formatDayMonth,
+  formatDateRange,
+} = require('../utils/delivery');
 
 let server;
 let baseUrl;
@@ -98,6 +105,16 @@ function extractCartItemId(html, productName) {
   return null;
 }
 
+function extractSavedAddressId(html) {
+  const match = html.match(/\/buyer\/addresses\/(\d+)\/edit/);
+  return match ? Number(match[1]) : null;
+}
+
+function extractOrderId(redirectOrHtml) {
+  const match = (redirectOrHtml || '').match(/\/buyer\/orders\/(\d+)\/confirmation/);
+  return match ? Number(match[1]) : null;
+}
+
 async function run() {
   server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
@@ -105,6 +122,22 @@ async function run() {
   console.log(`Smoke tests against ${baseUrl}\n`);
 
   const anon = makeClient();
+
+  let checkoutWindow = null;
+
+  /* --- Delivery date math: month / leap-year / year-boundary correctness --- */
+  const baseWindow = computeDeliveryWindow(new Date(2026, 8, 21, 12, 0, 0));
+  assert(baseWindow.start === '2026-09-24' && baseWindow.end === '2026-09-28', 'window from 21-Sep-2026 is 24 Sep - 28 Sep', `${baseWindow.start}..${baseWindow.end}`);
+  assert(formatDayMonth(baseWindow.start) === '24 Sep' && formatDayMonth(baseWindow.end) === '28 Sep', 'window formatted as e-commerce dates', `${formatDayMonth(baseWindow.start)} - ${formatDayMonth(baseWindow.end)}`);
+  assert(formatDateRange(baseWindow.start, baseWindow.end).includes('24 Sep') && formatDateRange(baseWindow.start, baseWindow.end).includes('28 Sep'), 'range label renders as 24 Sep - 28 Sep', formatDateRange(baseWindow.start, baseWindow.end));
+  const leapWindow = computeDeliveryWindow(new Date(2024, 1, 26, 12, 0, 0));
+  assert(leapWindow.start === '2024-02-29', 'leap year Feb 29 computed correctly', leapWindow.start);
+  const eomWindow = computeDeliveryWindow(new Date(2026, 0, 29, 12, 0, 0));
+  assert(eomWindow.start === '2026-02-01', 'month boundary computed correctly', eomWindow.start);
+  const yearWindow = computeDeliveryWindow(new Date(2026, 11, 30, 12, 0, 0));
+  assert(yearWindow.end === '2027-01-06', 'year boundary computed correctly', yearWindow.end);
+  assert(toISODate(addDays(new Date(2026, 8, 21, 12, 0, 0), 3)) === '2026-09-24' && toISODate(addDays(new Date(2026, 8, 21, 12, 0, 0), 7)) === '2026-09-28', 'addDays matches 3/7-day delivery window', 'ok');
+  assert(computeDeliveryWindow(new Date(2026, 8, 21, 12, 0, 0)).start === '2026-09-24' && computeDeliveryWindow(new Date(2026, 8, 22, 12, 0, 0)).start === '2026-09-25', 'window advances with the current date (21 Sep -> 22 Sep)', 'ok');
 
   let r = await anon.request('GET', '/');
   assert(r.status === 200 && r.text.includes('SANDRONMART'), 'home page renders SANDRONMART', `status=${r.status}`);
@@ -216,7 +249,7 @@ async function run() {
   assert(r.text.includes('Product added successfully.'), 'created success message shown');
   assert(r.text.includes('Monstera Deliciosa') && r.text.includes('Tomato Seeds'), 'list shows only own products');
   assert(r.text.includes('Indoor Plants') && r.text.includes('Seeds'), 'list shows categories');
-  assert(r.text.includes('$24.99') && r.text.includes('$3.50'), 'list shows formatted prices');
+  assert(r.text.includes('\u20B924.99') && r.text.includes('\u20B93.50'), 'list shows formatted prices');
   assert(r.text.includes('10 in stock') && r.text.includes('0 in stock'), 'list shows stock');
   assert(r.text.includes('/edit') && /js-confirm-delete/.test(r.text), 'list has edit and delete controls');
 
@@ -437,7 +470,7 @@ async function run() {
 
   r = await buyer.request('GET', `/buyer/products/${idMonstera}`);
   assert(r.status === 200 && r.text.includes('Monstera Albo'), 'buyer opens product detail', `status=${r.status}`);
-  assert(r.text.includes('Indoor Plants') && r.text.includes('$39.99'), 'detail shows category and price');
+  assert(r.text.includes('Indoor Plants') && r.text.includes('\u20B939.99'), 'detail shows category and price');
   assert(r.text.includes('7 in stock'), 'detail shows available stock');
   assert(r.text.includes('Sam Seller'), 'detail shows seller information');
   assert(r.text.includes('Add to Cart'), 'detail shows add to cart button');
@@ -504,8 +537,8 @@ async function run() {
   r = await buyer.request('GET', '/buyer/cart?added=1');
   assert(r.text.includes('Product added to your cart.'), 'added success message shown');
   assert(r.text.includes('Monstera Albo') && r.text.includes('Indoor Plants'), 'cart lists product with category');
-  assert(r.text.includes('$39.99') && r.text.includes('2'), 'cart shows unit price and quantity');
-  assert(r.text.includes('$79.98'), 'cart shows subtotal');
+  assert(r.text.includes('\u20B939.99') && r.text.includes('2'), 'cart shows unit price and quantity');
+  assert(r.text.includes('\u20B979.98'), 'cart shows subtotal');
   assert(r.text.includes('href="/buyer/cart"'), 'cart page has cart nav link');
   assert(/\/buyer\/cart\/\d+\/remove/.test(r.text), 'cart items have remove buttons');
 
@@ -514,7 +547,7 @@ async function run() {
   r = await buyer.request('GET', '/buyer/cart');
   assert((r.text.match(/class="cart-item"/g) || []).length === 1, 'no duplicate cart rows for same product');
   assert(r.text.includes('<span class="qty-value">3</span>'), 'merged quantity is 3');
-  assert(r.text.includes('$119.97'), 'merged subtotal shown');
+  assert(r.text.includes('\u20B9119.97'), 'merged subtotal shown');
 
   r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idMonstera), quantity: '5' });
   assert(r.status === 302 && (r.location || '').includes('stock=1'), 'add above stock rejected', `status=${r.status} loc=${r.location}`);
@@ -534,12 +567,12 @@ async function run() {
   assert(r.text.includes('Cart (5)'), 'header shows cart item count');
 
   r = await buyer.request('GET', '/buyer/cart');
-  assert(r.text.includes('$159.95'), 'cart total sums all subtotals');
+  assert(r.text.includes('\u20B9159.95'), 'cart total sums all subtotals');
 
   r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idRose), quantity: '10' });
   assert(r.status === 302 && (r.location || '').includes('stock=1'), 'fresh add exceeding stock rejected', `status=${r.status}`);
   r = await buyer.request('GET', '/buyer/cart');
-  assert(r.text.includes('$159.95'), 'cart unchanged after rejected over-stock add');
+  assert(r.text.includes('\u20B9159.95'), 'cart unchanged after rejected over-stock add');
 
   r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idMonstera), quantity: '0' });
   assert(r.status === 302 && (r.location || '').includes('invalid=1'), 'zero quantity rejected', `status=${r.status}`);
@@ -555,7 +588,7 @@ async function run() {
   assert(r.status === 302 && (r.location || '').includes('notfound=1'), 'deleted product add rejected', `status=${r.status}`);
   r = await buyer.request('GET', '/buyer/cart?notfound=1');
   assert(r.text.includes('That product is no longer available.'), 'product not found message shown');
-  assert(r.text.includes('$159.95'), 'cart intact after failed adds');
+  assert(r.text.includes('\u20B9159.95'), 'cart intact after failed adds');
 
   r = await buyer.request('GET', '/buyer/cart');
   const cartIdMonstera = extractCartItemId(r.text, 'Monstera Albo');
@@ -603,7 +636,7 @@ async function run() {
   assert(r.status === 302 && (r.location || '').includes('invalid=1'), 'other buyers cart item update rejected', `status=${r.status}`);
 
   r = await buyer.request('GET', '/buyer/cart');
-  assert(r.text.includes('$119.95'), 'cart total correct after updates');
+  assert(r.text.includes('\u20B9119.95'), 'cart total correct after updates');
 
   r = await anon.request('POST', '/register', {
     fullName: 'Bella Buyer', email: 'bella@example.com', phone: '+254712345686',
@@ -651,6 +684,264 @@ async function run() {
   r = await buyer.request('GET', '/buyer/cart');
   assert(r.text.includes('Your cart is empty.'), 'cart empty after removing all items');
 
+  /* ===== Indian E-commerce: saved delivery addresses ===== */
+
+  r = await anon.request('GET', '/buyer/addresses');
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'anonymous saved addresses redirects to login', `status=${r.status}`);
+  r = await seller.request('GET', '/buyer/addresses');
+  assert(r.status === 403 && r.text.includes('403'), 'seller blocked from saved addresses (403)', `status=${r.status}`);
+
+  r = await buyer.request('GET', '/buyer/addresses');
+  assert(r.status === 200 && r.text.includes('Saved Addresses'), 'buyer saved addresses page renders', `status=${r.status}`);
+
+  const validAddress = {
+    full_name: 'Jane Buyer',
+    phone: '9876543210',
+    house_number: '12/4',
+    street: 'Gandhi Street',
+    landmark: 'Near Bus Stand',
+    city: 'Kanchipuram',
+    district: 'Kanchipuram',
+    state: 'Tamil Nadu',
+    pincode: '631501',
+  };
+
+  r = await buyer.request('POST', '/buyer/addresses', validAddress);
+  assert(r.status === 302 && (r.location || '').includes('/buyer/addresses?saved=1'), 'buyer saves Indian delivery address', `status=${r.status} loc=${r.location}`);
+
+  r = await buyer.request('POST', '/buyer/addresses', Object.assign({}, validAddress, { phone: '12345', pincode: '123' }));
+  assert(r.status === 400, 'invalid address (phone/pincode) rejected', `status=${r.status}`);
+  assert(r.text.includes('valid 10-digit Indian mobile') || r.text.includes('valid 6-digit'), 'invalid phone/pincode message shown');
+
+  r = await buyer.request('GET', '/buyer/addresses?saved=1');
+  assert(r.text.includes('Address saved successfully.'), 'address saved success message');
+  assert(r.text.includes('Gandhi Street') && r.text.includes('631501') && r.text.includes('Default'), 'saved address shown with Indian fields');
+  const savedAddressId = extractSavedAddressId(r.text);
+  assert(savedAddressId !== null, 'saved address id extracted', `id=${savedAddressId}`);
+
+  /* ===== Indian E-commerce: checkout ===== */
+
+  r = await buyer.request('GET', '/buyer/checkout');
+  assert(r.status === 302 && (r.location || '').includes('/buyer/cart'), 'checkout with empty cart redirects to cart', `status=${r.status}`);
+
+  r = await anon.request('GET', '/buyer/checkout');
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'anonymous checkout redirects to login', `status=${r.status}`);
+  r = await seller.request('GET', '/buyer/checkout');
+  assert(r.status === 403 && r.text.includes('403'), 'seller blocked from checkout (403)', `status=${r.status}`);
+
+  r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idMonstera), quantity: '2' });
+  assert(r.status === 302 && (r.location || '').includes('added=1'), 'buyer adds item for checkout', `status=${r.status}`);
+
+  checkoutWindow = computeDeliveryWindow(new Date());
+  r = await buyer.request('GET', '/buyer/checkout');
+  assert(r.status === 200 && r.text.includes('Checkout'), 'checkout page renders', `status=${r.status}`);
+  assert(r.text.includes(formatDateRange(checkoutWindow.start, checkoutWindow.end)), 'checkout delivery range derived from current date', formatDateRange(checkoutWindow.start, checkoutWindow.end));
+  assert(r.text.includes(formatDayMonth(checkoutWindow.start)) && r.text.includes(formatDayMonth(checkoutWindow.end)), 'checkout range shows 3-day start and 7-day end', `${formatDayMonth(checkoutWindow.start)} - ${formatDayMonth(checkoutWindow.end)}`);
+  assert(r.text.includes('3&ndash;7 day delivery window'), 'checkout shows 3-7 day delivery window label');
+  assert(r.text.includes('12/4') && r.text.includes('Gandhi Street') && r.text.includes('Tamil Nadu') && r.text.includes('631501'), 'checkout auto-loads saved delivery address');
+  assert(r.text.includes('9:00 AM - 12:00 PM') && r.text.includes('6:00 PM - 9:00 PM'), 'checkout shows delivery time slots');
+  assert(r.text.includes('Cash on Delivery') && r.text.includes('UPI') && r.text.includes('Credit / Debit Card'), 'checkout shows Indian-friendly payment methods');
+  assert(r.text.includes('Monstera Albo') && r.text.includes('\u20B939.99') && r.text.includes('\u20B979.98'), 'checkout shows items priced in INR');
+  assert(r.text.includes('Grand Total') && r.text.includes('\u20B9119.98'), 'checkout shows grand total with delivery charge');
+  assert(r.text.includes('Place Order'), 'checkout shows place order button');
+  assert(/Expected Delivery/.test(r.text), 'checkout shows expected delivery window');
+
+  /* --- Checkout server-side validation --- */
+  r = await buyer.request('POST', '/buyer/checkout', {
+    address_id: 'new',
+    full_name: 'Jane', phone: '9876543210', house_number: '12/4', street: 'Gandhi Street',
+    landmark: '', city: 'Kanchipuram', district: '', state: 'Tamil Nadu', pincode: '631501',
+    delivery_time_slot: '',
+    payment_method: 'COD',
+  });
+  assert(r.status === 400 && r.text.includes('delivery time slot'), 'missing time slot rejected', `status=${r.status}`);
+
+  r = await buyer.request('POST', '/buyer/checkout', {
+    address_id: 'new',
+    full_name: 'Jane', phone: '9876543210', house_number: '12/4', street: 'Gandhi Street',
+    landmark: '', city: 'Kanchipuram', district: '', state: 'Tamil Nadu', pincode: '631501',
+    delivery_time_slot: '3:00 PM - 6:00 PM',
+    payment_method: '',
+  });
+  assert(r.status === 400 && r.text.includes('payment method'), 'missing payment method rejected', `status=${r.status}`);
+
+  r = await buyer.request('POST', '/buyer/checkout', {
+    address_id: 'new',
+    full_name: 'Jane', phone: '98765', house_number: '12/4', street: 'Gandhi Street',
+    landmark: '', city: 'Kanchipuram', district: '', state: 'Tamil Nadu', pincode: '631501',
+    delivery_time_slot: '3:00 PM - 6:00 PM',
+    payment_method: 'COD',
+  });
+  assert(r.status === 400 && r.text.includes('valid 10-digit Indian mobile'), 'invalid Indian phone rejected at checkout', `status=${r.status}`);
+
+  r = await buyer.request('POST', '/buyer/checkout', {
+    address_id: 'new',
+    full_name: 'Jane', phone: '9876543210', house_number: '12/4', street: 'Gandhi Street',
+    landmark: '', city: 'Kanchipuram', district: '', state: 'Tamil Nadu', pincode: '123',
+    delivery_time_slot: '3:00 PM - 6:00 PM',
+    payment_method: 'COD',
+  });
+  assert(r.status === 400 && r.text.includes('valid 6-digit Indian pincode'), 'invalid pincode rejected at checkout', `status=${r.status}`);
+
+  /* --- Place order (COD) --- */
+  r = await buyer.request('POST', '/buyer/checkout', {
+    address_id: String(savedAddressId),
+    delivery_time_slot: '3:00 PM - 6:00 PM',
+    payment_method: 'COD',
+  });
+  assert(r.status === 302 && /\/buyer\/orders\/\d+\/confirmation/.test(r.location || ''), 'buyer places order successfully', `status=${r.status} loc=${r.location}`);
+  const orderId = extractOrderId(r.location);
+  assert(orderId !== null, 'order id extracted', `id=${orderId}`);
+
+  r = await buyer.request('GET', `/buyer/orders/${orderId}/confirmation`);
+  assert(r.status === 200 && r.text.includes('Order Placed Successfully!'), 'order confirmation page renders', `status=${r.status}`);
+  assert(/SM\d{12}/.test(r.text), 'confirmation shows realistic order id');
+  assert(r.text.includes('3:00 PM - 6:00 PM'), 'confirmation shows delivery time slot');
+  assert(r.text.includes('Cash on Delivery'), 'confirmation shows payment method');
+  assert(r.text.includes('\u20B9119.98'), 'confirmation shows grand total in INR');
+  assert(!r.text.includes('$'), 'no dollar amounts anywhere');
+  assert(r.text.includes('Track Order') && r.text.includes('Continue Shopping'), 'confirmation shows track and continue buttons');
+  assert(r.text.includes(formatDateRange(checkoutWindow.start, checkoutWindow.end)), 'confirmation shows the delivery window captured at order time', formatDateRange(checkoutWindow.start, checkoutWindow.end));
+
+  r = await buyer.request('GET', `/buyer/products/${idMonstera}`);
+  assert(r.text.includes('5 in stock'), 'stock reduced on product detail after order');
+
+  /* --- My Orders --- */
+  r = await buyer.request('GET', '/buyer/orders');
+  assert(r.status === 200 && r.text.includes('My Orders'), 'my orders page renders after placing order', `status=${r.status}`);
+  assert(r.text.includes('Monstera Albo') && /SM\d{12}/.test(r.text), 'my orders shows placed order and order id');
+  assert(r.text.includes('3:00 PM - 6:00 PM') && r.text.includes('Cash on Delivery'), 'my orders shows delivery time and payment');
+  assert(r.text.includes('View Details') && r.text.includes('Track Order'), 'my orders has view details + track buttons');
+  assert(r.text.includes(formatDateRange(checkoutWindow.start, checkoutWindow.end)), 'my orders preserves the original delivery window', formatDateRange(checkoutWindow.start, checkoutWindow.end));
+
+  /* --- Order Details --- */
+  r = await buyer.request('GET', `/buyer/orders/${orderId}`);
+  assert(r.status === 200 && r.text.includes('Order Details'), 'order details page renders', `status=${r.status}`);
+  assert(r.text.includes('12/4') && r.text.includes('Gandhi Street') && r.text.includes('631501'), 'order details shows delivery address');
+  assert(r.text.includes('3:00 PM - 6:00 PM') && r.text.includes('Cash on Delivery'), 'order details shows time slot and payment');
+  assert(r.text.includes('\u20B940.00') && r.text.includes('\u20B9119.98'), 'order details shows delivery charge and grand total');
+  assert(r.text.includes('Track Order'), 'order details has track order button');
+  assert(r.text.includes(formatDateRange(checkoutWindow.start, checkoutWindow.end)), 'order details preserves the original delivery window', formatDateRange(checkoutWindow.start, checkoutWindow.end));
+
+  /* --- Order Tracking --- */
+  r = await buyer.request('GET', `/buyer/orders/${orderId}/track`);
+  assert(r.status === 200 && r.text.includes('Track Order'), 'order tracking page renders', `status=${r.status}`);
+  assert(r.text.includes('Order Placed'), 'tracking shows placed step');
+  assert(r.text.includes('Order Confirmed') && r.text.includes('Expected:'), 'tracking shows upcoming statuses with expected dates');
+  assert(/Expected: \d+ \w+/.test(r.text), 'tracking shows expected delivery dates');
+  assert(r.text.includes(formatDateRange(checkoutWindow.start, checkoutWindow.end)), 'tracking preserves the original delivery window', formatDateRange(checkoutWindow.start, checkoutWindow.end));
+
+  /* --- Seller Order Management --- */
+  r = await seller.request('GET', '/seller/orders');
+  assert(r.status === 200 && r.text.includes('Incoming Orders'), 'seller orders page renders', `status=${r.status}`);
+  assert(r.text.includes('Monstera Albo') && /SM\d{12}/.test(r.text), 'seller sees incoming order with own product');
+  assert(r.text.includes('Jane Buyer') && r.text.includes('9876543210'), 'seller sees buyer name and phone');
+  assert(r.text.includes('Gandhi Street') && r.text.includes('631501'), 'seller sees delivery address');
+  assert(r.text.includes('3:00 PM - 6:00 PM') && r.text.includes('Cash on Delivery'), 'seller sees time slot and payment method');
+  assert(r.text.includes('\u20B9119.98'), 'seller sees order amount in INR');
+
+  r = await sellerB.request('GET', '/seller/orders');
+  assert(r.status === 200 && !r.text.includes('Monstera Albo'), 'other seller cannot see unrelated order', `status=${r.status}`);
+
+  r = await seller.request('POST', `/seller/orders/${orderId}/status`, { status: 'SHIPPED' });
+  assert(r.status === 302 && (r.location || '').includes('error=1'), 'skipping a status step rejected', `status=${r.status} loc=${r.location}`);
+
+  const statusChain = ['CONFIRMED', 'PACKED', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+  for (const next of statusChain) {
+    r = await seller.request('POST', `/seller/orders/${orderId}/status`, { status: next });
+    assert(r.status === 302 && (r.location || '').includes('updated=1'), `seller moves order to ${next}`, `status=${r.status} loc=${r.location}`);
+  }
+
+  r = await seller.request('POST', `/seller/orders/${orderId}/status`, { status: 'CONFIRMED' });
+  assert(r.status === 302 && (r.location || '').includes('error=1'), 'delivered order cannot be changed', `status=${r.status} loc=${r.location}`);
+
+  r = await buyer.request('GET', `/buyer/orders/${orderId}/track`);
+  assert(r.status === 200 && r.text.includes('Delivered'), 'buyer tracking reflects delivered status', `status=${r.status}`);
+  assert(r.text.includes('✓'), 'tracking shows completed steps');
+
+  r = await buyer.request('GET', '/buyer/orders');
+  assert(r.text.includes('status-delivered'), 'my orders badge reflects delivered status');
+
+  /* --- Buyer isolation --- */
+  r = await buyerB.request('GET', `/buyer/orders/${orderId}`);
+  assert(r.status === 404, 'buyer cannot view another buyers order details', `status=${r.status}`);
+  r = await buyerB.request('GET', `/buyer/orders/${orderId}/track`);
+  assert(r.status === 404, 'buyer cannot track another buyers order', `status=${r.status}`);
+  r = await buyerB.request('GET', `/buyer/orders/${orderId}/confirmation`);
+  assert(r.status === 404, 'buyer cannot view another buyers confirmation', `status=${r.status}`);
+  r = await seller.request('GET', `/buyer/orders/${orderId}`);
+  assert(r.status === 403, 'seller blocked from buyer order details (403)', `status=${r.status}`);
+
+  /* --- Place an order via UPI, then place and cancel one via CARD --- */
+  r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idMonstera), quantity: '2' });
+  assert(r.status === 302 && (r.location || '').includes('added=1'), 'buyer adds monstera for UPI order', `status=${r.status}`);
+  r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idRose), quantity: '1' });
+  assert(r.status === 302 && (r.location || '').includes('added=1'), 'buyer adds rose for UPI order', `status=${r.status}`);
+
+  r = await buyer.request('POST', '/buyer/checkout', {
+    address_id: String(savedAddressId),
+    delivery_time_slot: '9:00 AM - 12:00 PM',
+    payment_method: 'UPI',
+  });
+  assert(r.status === 302 && /\/confirmation/.test(r.location || ''), 'places order with UPI payment', `status=${r.status} loc=${r.location}`);
+  const orderIdUpI = extractOrderId(r.location);
+  assert(orderIdUpI !== null, 'second order id extracted', `id=${orderIdUpI}`);
+  r = await buyer.request('GET', `/buyer/orders/${orderIdUpI}/confirmation`);
+  assert(r.text.includes('UPI'), 'confirmation shows UPI payment method');
+
+  r = await buyer.request('GET', '/buyer/cart');
+  assert(r.text.includes('Your cart is empty.'), 'cart cleared after payment simulation');
+
+  r = await buyer.request('POST', '/buyer/cart/add', { product_id: String(idRose), quantity: '1' });
+  r = await buyer.request('POST', '/buyer/checkout', {
+    address_id: String(savedAddressId),
+    delivery_time_slot: '6:00 PM - 9:00 PM',
+    payment_method: 'CARD',
+  });
+  const orderIdCard = extractOrderId(r.location);
+  assert(orderIdCard !== null, 'third order id extracted', `id=${orderIdCard}`);
+  r = await buyer.request('GET', `/buyer/orders/${orderIdCard}/confirmation`);
+  assert(r.text.includes('Credit / Debit Card'), 'confirmation shows card payment method');
+
+  r = await seller.request('POST', `/seller/orders/${orderIdCard}/status`, { status: 'CANCELLED' });
+  assert(r.status === 302 && (r.location || '').includes('updated=1'), 'seller cancels order', `status=${r.status} loc=${r.location}`);
+  r = await buyer.request('GET', `/buyer/orders/${orderIdCard}/track`);
+  assert(r.text.includes('Cancelled'), 'buyer sees cancelled order status');
+  r = await buyer.request('GET', '/buyer/cart');
+  assert(r.text.includes('Your cart is empty.'), 'cart stays clear after cancelled order');
+
+  /* --- New-address checkout: buyer with no saved address places an order --- */
+  r = await buyerB.request('POST', '/buyer/cart/add', { product_id: String(idMonstera), quantity: '1' });
+  assert(r.status === 302 && (r.location || '').includes('added=1'), 'second buyer adds item for new-address checkout', `status=${r.status}`);
+
+  r = await buyerB.request('GET', '/buyer/checkout');
+  assert(r.status === 200 && r.text.includes('Full Name') && r.text.includes('Pincode'), 'new-address checkout shows address form', `status=${r.status}`);
+
+  r = await buyerB.request('POST', '/buyer/checkout', {
+    address_id: 'new',
+    full_name: 'Ravi Kumar',
+    phone: '9456781230',
+    house_number: '45',
+    street: 'MG Road',
+    landmark: '',
+    city: 'Chennai',
+    district: 'Chennai',
+    state: 'Tamil Nadu',
+    pincode: '600001',
+    delivery_time_slot: '9:00 AM - 12:00 PM',
+    payment_method: 'COD',
+    save_address: '1',
+  });
+  assert(r.status === 302 && /\/buyer\/orders\/\d+\/confirmation/.test(r.location || ''), 'new-address checkout places order successfully', `status=${r.status} loc=${r.location}`);
+  const orderIdNew = extractOrderId(r.location);
+  assert(orderIdNew !== null, 'new-address order id extracted', `id=${orderIdNew}`);
+
+  r = await buyerB.request('GET', `/buyer/orders/${orderIdNew}/confirmation`);
+  assert(r.status === 200 && r.text.includes('Ravi Kumar') && r.text.includes('600001'), 'new-address confirmation shows entered address', `status=${r.status}`);
+
+  r = await buyerB.request('GET', '/buyer/cart');
+  assert(r.text.includes('Your cart is empty.'), 'cart cleared after new-address order');
+
   const badLogin = makeClient();
   r = await badLogin.request('POST', '/login', { email: 'jane@example.com', password: 'wrong' });
   assert(r.status === 302 && (r.location || '').includes('/login?error=1'), 'invalid credentials show error redirect', `status=${r.status} loc=${r.location}`);
@@ -688,6 +979,49 @@ async function run() {
     'SELECT COUNT(*) AS c FROM cart_items ci LEFT JOIN users u ON u.id = ci.buyer_id LEFT JOIN products p ON p.id = ci.product_id WHERE u.id IS NULL OR p.id IS NULL'
   ).get();
   assert(orphanCart.c === 0, 'all cart items reference existing users and products');
+
+  const ordersCount = db.prepare('SELECT COUNT(*) AS c FROM orders').get();
+  assert(ordersCount.c === 4, 'four orders stored', `count=${ordersCount.c}`);
+  const orderRow = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+  assert(orderRow, 'placed order row exists');
+  assert(orderRow.order_number.startsWith('SM'), 'order number uses SM prefix', orderRow.order_number);
+  assert(orderRow.buyer_id === janeId, 'order tied to buyer');
+  assert(orderRow.payment_method === 'COD' && orderRow.status === 'DELIVERED', 'order1 payment/status persisted', `${orderRow.payment_method}/${orderRow.status}`);
+  assert(orderRow.total === 119.98 && orderRow.delivery_charge === 40, 'order totals stored correctly', `total=${orderRow.total} charge=${orderRow.delivery_charge}`);
+  assert(orderRow.full_name === 'Jane Buyer' && orderRow.phone === '9876543210' && orderRow.pincode === '631501', 'order delivery address stored');
+  assert(orderRow.delivery_time_slot === '3:00 PM - 6:00 PM', 'order time slot stored', orderRow.delivery_time_slot);
+  assert(checkoutWindow && orderRow.delivery_start_date === checkoutWindow.start && orderRow.delivery_end_date === checkoutWindow.end, 'order snapshots the delivery window shown at checkout', `${orderRow.delivery_start_date}/${orderRow.delivery_end_date} vs ${checkoutWindow && checkoutWindow.start}/${checkoutWindow && checkoutWindow.end}`);
+  assert(orderRow.delivery_start_date && orderRow.delivery_end_date && orderRow.delivery_end_date >= orderRow.delivery_start_date, 'delivery window stored', `${orderRow.delivery_start_date}-${orderRow.delivery_end_date}`);
+
+  const orderItemRow = db.prepare('SELECT * FROM order_items WHERE order_id = ?').get(orderId);
+  assert(orderItemRow && orderItemRow.quantity === 2 && Number(orderItemRow.price) === 39.99 && orderItemRow.seller_id === samId, 'order item quantity/price/seller stored');
+
+  const monstStock = db.prepare('SELECT stock FROM products WHERE id = ?').get(idMonstera);
+  assert(monstStock.stock === 2, 'stock reduced after orders', `stock=${monstStock.stock}`);
+  const roseStock = db.prepare('SELECT stock FROM products WHERE id = ?').get(idRose);
+  assert(roseStock.stock === 3, 'rose stock reduced after orders', `stock=${roseStock.stock}`);
+
+  const statusEvents = db.prepare('SELECT COUNT(*) AS c FROM order_status_events WHERE order_id = ?').get(orderId);
+  assert(statusEvents.c === 6, 'status history recorded for each step', `count=${statusEvents.c}`);
+  const cancelledRow = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderIdCard);
+  assert(cancelledRow && cancelledRow.status === 'CANCELLED', 'cancelled order persisted', cancelledRow && cancelledRow.status);
+  const upiRow = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderIdUpI);
+  assert(upiRow && upiRow.payment_method === 'UPI', 'UPI payment method persisted', upiRow && upiRow.payment_method);
+  const bellaId = db.prepare("SELECT id FROM users WHERE email = 'bella@example.com'").get().id;
+  const newOrderRow = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderIdNew);
+  assert(newOrderRow && newOrderRow.buyer_id === bellaId && newOrderRow.payment_method === 'COD' && Number(newOrderRow.total) === 79.99, 'new-address order stored for second buyer', newOrderRow && `${newOrderRow.buyer_id}/${newOrderRow.payment_method}/${newOrderRow.total}`);
+  assert(newOrderRow && newOrderRow.city === 'Chennai' && newOrderRow.pincode === '600001', 'new-address order stores entered delivery address', newOrderRow && `${newOrderRow.city}/${newOrderRow.pincode}`);
+  const bellaAddress = db.prepare('SELECT * FROM addresses WHERE buyer_id = ?').get(bellaId);
+  assert(bellaAddress && bellaAddress.pincode === '600001' && bellaAddress.is_default === 1, 'save_address persists new address for second buyer', bellaAddress && bellaAddress.pincode);
+
+  const orphanOrders = db.prepare(
+    'SELECT COUNT(*) AS c FROM orders o LEFT JOIN users u ON u.id = o.buyer_id WHERE u.id IS NULL'
+  ).get();
+  assert(orphanOrders.c === 0, 'all orders reference a valid buyer');
+  const orphanOrderItems = db.prepare(
+    'SELECT COUNT(*) AS c FROM order_items oi LEFT JOIN orders o ON o.id = oi.order_id WHERE o.id IS NULL'
+  ).get();
+  assert(orphanOrderItems.c === 0, 'all order items reference a valid order');
 
   db.close();
   require('../config/db').close();

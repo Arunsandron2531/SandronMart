@@ -1,6 +1,18 @@
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\+?[0-9]{6,15}$/;
+const INDIAN_MOBILE_PATTERN = /^[6-9][0-9]{9}$/;
+const PINCODE_PATTERN = /^[1-9][0-9]{5}$/;
 const ROLES = ['BUYER', 'SELLER'];
+
+const INDIA_STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry',
+];
 
 const PRODUCT_CATEGORIES = [
   'Indoor Plants',
@@ -78,6 +90,79 @@ function validateRegister(body) {
   return errors;
 }
 
+function validateIndianMobile(phone) {
+  return typeof phone === 'string' && INDIAN_MOBILE_PATTERN.test(phone.trim());
+}
+
+function validatePincode(pincode) {
+  return typeof pincode === 'string' && PINCODE_PATTERN.test(pincode.trim());
+}
+
+function single(value) {
+  return Array.isArray(value) ? (value[0] || '') : (value || '');
+}
+
+function validateAddress(body) {
+  const errors = {};
+  const fullName = single(body.full_name).trim();
+  const phone = single(body.phone).trim();
+  const houseNumber = single(body.house_number).trim();
+  const street = single(body.street).trim();
+  const landmark = single(body.landmark).trim();
+  const city = single(body.city).trim();
+  const district = single(body.district).trim();
+  const state = single(body.state).trim();
+  const pincode = single(body.pincode).trim();
+
+  if (!fullName) {
+    addError(errors, 'full_name', 'Full name is required');
+  }
+
+  if (!phone) {
+    addError(errors, 'phone', 'Mobile number is required');
+  } else if (!validateIndianMobile(phone)) {
+    addError(errors, 'phone', 'Enter a valid 10-digit Indian mobile number');
+  }
+
+  if (!houseNumber) {
+    addError(errors, 'house_number', 'House / Flat / Door number is required');
+  }
+
+  if (!street) {
+    addError(errors, 'street', 'Street / Area is required');
+  }
+
+  if (!city) {
+    addError(errors, 'city', 'City / Town is required');
+  }
+
+  if (!state) {
+    addError(errors, 'state', 'State is required');
+  } else if (!INDIA_STATES.includes(state)) {
+    addError(errors, 'state', 'Please select a valid Indian state');
+  }
+
+  if (!pincode) {
+    addError(errors, 'pincode', 'Pincode is required');
+  } else if (!validatePincode(pincode)) {
+    addError(errors, 'pincode', 'Enter a valid 6-digit Indian pincode');
+  }
+
+  errors.__clean = {
+    full_name: fullName,
+    phone: phone,
+    house_number: houseNumber,
+    street: street,
+    landmark: landmark,
+    city: city,
+    district: district,
+    state: state,
+    pincode: pincode,
+  };
+
+  return errors;
+}
+
 function validateProduct(body) {
   const errors = {};
   const { name, description, category, price, stock } = body;
@@ -118,5 +203,9 @@ module.exports = {
   validateLogin,
   validateRegister,
   validateProduct,
+  validateAddress,
+  validateIndianMobile,
+  validatePincode,
   PRODUCT_CATEGORIES,
+  INDIA_STATES,
 };

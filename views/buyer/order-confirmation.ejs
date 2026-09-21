@@ -1,0 +1,73 @@
+<%- include('../partials/header', { title: 'Order Confirmed' }) %>
+
+<div class="container narrow">
+  <div class="confirmation-card">
+    <div class="confirmation-icon">✓</div>
+    <h1>Order Placed Successfully!</h1>
+    <p class="muted">Thank you for shopping with SANDRONMART. Your order is confirmed.</p>
+
+    <div class="confirmation-details">
+      <div class="confirmation-line">
+        <span>Order ID</span>
+        <strong><%= order.order_number %></strong>
+      </div>
+      <div class="confirmation-line">
+        <span>Order Date</span>
+        <span><%= order.orderDateLabel %></span>
+      </div>
+      <div class="confirmation-line">
+        <span>Expected Delivery</span>
+        <span><strong><%= order.deliveryLabel %></strong></span>
+      </div>
+      <div class="confirmation-line">
+        <span>Delivery Time</span>
+        <span><%= order.delivery_time_slot %></span>
+      </div>
+      <div class="confirmation-line">
+        <span>Payment</span>
+        <span><%= order.paymentLabel %></span>
+      </div>
+      <div class="confirmation-line">
+        <span>Total</span>
+        <strong><%= formatINR(order.total) %></strong>
+      </div>
+    </div>
+
+    <div class="confirmation-address">
+      <h3>Delivery Address</h3>
+      <strong><%= order.full_name %></strong>
+      <div><%= order.house_number %>, <%= order.street %></div>
+      <% if (order.landmark) { %><div>Near <%= order.landmark %></div><% } %>
+      <div><%= order.city %><% if (order.district) { %>, <%= order.district %><% } %></div>
+      <div><%= order.state %> - <%= order.pincode %></div>
+      <div class="muted">Mobile: <%= order.phone %></div>
+    </div>
+
+    <div class="confirmation-items">
+      <h3>Items</h3>
+      <div class="summary-lines">
+        <% order.items.forEach(function (item) { %>
+          <div class="summary-line">
+            <span><%= item.name %> &times; <%= item.quantity %></span>
+            <span><%= formatINR(item.price * item.quantity) %></span>
+          </div>
+        <% }) %>
+        <div class="summary-line">
+          <span>Delivery</span>
+          <span><% if (order.delivery_charge === 0) { %><span class="free-badge">FREE</span><% } else { %><%= formatINR(order.delivery_charge) %><% } %></span>
+        </div>
+        <div class="summary-line grand-total">
+          <span>Grand Total</span>
+          <span><strong><%= formatINR(order.total) %></strong></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="confirmation-actions">
+      <a class="btn btn-primary" href="/buyer/orders/<%= order.id %>/track">Track Order</a>
+      <a class="btn btn-outline" href="/buyer/products">Continue Shopping</a>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

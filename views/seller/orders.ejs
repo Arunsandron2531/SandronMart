@@ -1,24 +1,31 @@
-<%- include('../partials/header', { title: 'My Orders' }) %>
+<%- include('../partials/header', { title: 'Incoming Orders' }) %>
 
 <div class="container">
   <div class="page-head">
     <div>
-      <h1>My Orders</h1>
-      <p class="muted">Track your purchases.</p>
+      <h1>Incoming Orders</h1>
+      <p class="muted">Orders that include your products, with delivery and payment details.</p>
     </div>
   </div>
+
+  <% if (messages.success) { %>
+    <div class="alert alert-success"><%= messages.success %></div>
+  <% } %>
+  <% if (messages.error) { %>
+    <div class="alert alert-error"><%= messages.error %></div>
+  <% } %>
 
   <% if (orders.length === 0) { %>
     <div class="empty-state">
       <div class="empty-icon">📦</div>
-      <h3>No orders yet</h3>
-      <p>Your orders will appear here after you place an order.</p>
-      <a class="btn btn-primary" href="/buyer/products">Browse Products</a>
+      <h3>No incoming orders yet</h3>
+      <p>Orders containing your products will appear here once buyers place them.</p>
+      <a class="btn btn-primary" href="/seller/products">View My Products</a>
     </div>
   <% } else { %>
     <div class="order-list">
       <% orders.forEach(function (order) { %>
-        <div class="order-card">
+        <div class="order-card seller-order">
           <div class="order-head">
             <div class="order-id">
               <span class="muted">Order ID</span>
@@ -52,8 +59,12 @@
 
             <div class="order-meta">
               <div class="order-meta-line">
-                <span>Total</span>
-                <strong><%= formatINR(order.total) %></strong>
+                <span>Buyer</span>
+                <span><strong><%= order.full_name %></strong> &middot; <%= order.phone %></span>
+              </div>
+              <div class="order-meta-line">
+                <span>Delivery Address</span>
+                <span><%= order.house_number %>, <%= order.street %>, <%= order.city %>, <%= order.state %> - <%= order.pincode %></span>
               </div>
               <div class="order-meta-line">
                 <span>Expected Delivery</span>
@@ -67,13 +78,30 @@
                 <span>Payment</span>
                 <span><%= order.payment_method === 'COD' ? 'Cash on Delivery' : (order.payment_method === 'UPI' ? 'UPI' : 'Credit / Debit Card') %></span>
               </div>
+              <div class="order-meta-line">
+                <span>Order Total</span>
+                <strong><%= formatINR(order.total) %></strong>
+              </div>
             </div>
           </div>
 
-          <div class="order-actions">
-            <a class="btn btn-outline btn-sm" href="/buyer/orders/<%= order.id %>">View Details</a>
-            <a class="btn btn-primary btn-sm" href="/buyer/orders/<%= order.id %>/track">Track Order</a>
-          </div>
+          <% if (['DELIVERED', 'CANCELLED'].includes(order.status)) { %>
+            <div class="order-status-update">
+              <span class="muted">This order is <strong><%= order.statusLabel %></strong> and cannot be changed.</span>
+            </div>
+          <% } else { %>
+            <div class="order-status-update">
+              <form class="status-form" method="post" action="/seller/orders/<%= order.id %>/status">
+                <% const next = nextStatusOf(order.status); %>
+                <% if (next) { %>
+                  <button class="btn btn-primary btn-sm" type="submit" name="status" value="<%= next %>">
+                    Mark as <%= orderStatusLabel(next) %>
+                  </button>
+                <% } %>
+                <button class="btn btn-danger-outline btn-sm" type="submit" name="status" value="CANCELLED">Cancel Order</button>
+              </form>
+            </div>
+          <% } %>
         </div>
       <% }) %>
     </div>

@@ -1,8 +1,13 @@
 const express = require('express');
 const db = require('../config/db');
+const shop = require('../config/shop');
 const { requireRole } = require('../middlewares/auth');
 
 const router = express.Router();
+
+function round2(value) {
+  return Math.round(value * 100) / 100;
+}
 
 router.use('/buyer', requireRole('BUYER'));
 
@@ -50,12 +55,17 @@ router.get('/buyer/cart', (req, res) => {
      ORDER BY c.updated_at DESC, c.id DESC`
   ).all(req.session.userId);
 
-  const total = items.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
+  const subtotal = round2(items.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0));
+  const deliveryCharge = subtotal >= shop.FREE_DELIVERY_THRESHOLD ? 0 : shop.DELIVERY_CHARGE;
+  const total = round2(subtotal + deliveryCharge);
 
   res.render('buyer/cart', {
     title: 'Your Cart',
     items,
+    subtotal,
+    deliveryCharge,
     total,
+    freeDeliveryThreshold: shop.FREE_DELIVERY_THRESHOLD,
     messages: cartMessages(req.query),
   });
 });
