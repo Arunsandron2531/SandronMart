@@ -1,0 +1,45 @@
+<%- include('../partials/header', { title: 'All Products' }) %>
+
+<div class="container">
+  <div class="page-head">
+    <div>
+      <h1>All Products</h1>
+      <p class="muted">Every product listed on SANDRONMART, from all sellers.</p>
+    </div>
+    <a class="btn btn-outline btn-sm" href="/admin/dashboard">&larr; Dashboard</a>
+  </div>
+
+  <% if (products.length === 0) { %>
+    <div class="empty-state">
+      <div class="empty-icon">🌱</div>
+      <h3>No products yet</h3>
+      <p>Products will appear here once sellers add them.</p>
+    </div>
+  <% } else { %>
+    <div class="product-grid">
+      <% products.forEach(function (product) { %>
+        <div class="product-card">
+          <img class="product-thumb" src="<%= productImage(product) %>" alt="<%= product.name %>"
+               loading="lazy" data-default-image="<%= defaultProductImage(product) %>">
+          <div class="product-thumb product-thumb-fallback image-fallback" style="display:none;"></div>
+          <div class="product-body">
+            <div class="product-meta">
+              <span class="product-category"><%= product.category %></span>
+              <span class="stock-chip <%= product.stock === 0 ? 'stock-out' : 'stock-in' %>">
+                <%= product.stock %> in stock
+              </span>
+            </div>
+            <h3 class="product-name"><%= product.name %></h3>
+            <div class="product-price"><%= formatINR(product.price) %></div>
+            <p class="product-desc"><%= product.description %></p>
+            <div class="product-actions">
+              <span class="muted">Sold by <strong><%= product.seller_name %></strong></span>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/footer') %>

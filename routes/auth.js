@@ -14,6 +14,7 @@ function emailTaken(email) {
 }
 
 router.get('/login', (req, res) => {
+  const openForm = req.query.admin ? 'admin' : 'login';
   res.render('login', {
     title: 'Login',
     errorMessage: req.query.error ? 'Invalid email or password. Please try again.' : null,
@@ -22,7 +23,8 @@ router.get('/login', (req, res) => {
       : req.query.registered
         ? 'Account created successfully. Please sign in.'
         : null,
-    form: { email: '' },
+    form: { email: openForm === 'admin' ? (req.query.email || '') : '' },
+    openForm,
     errors: {},
   });
 });
@@ -52,6 +54,9 @@ router.post('/login', (req, res) => {
   req.session.email = user.email;
   req.session.role = user.role;
 
+  if (user.role === 'ADMIN') {
+    return res.redirect('/admin/dashboard');
+  }
   if (user.role === 'SELLER') {
     return res.redirect('/seller/dashboard');
   }

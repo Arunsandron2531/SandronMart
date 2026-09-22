@@ -24,41 +24,73 @@
         <div class="alert alert-error"><%= errorMessage %></div>
       <% } %>
 
-      <form method="post" action="/login" novalidate>
-        <div class="field">
-          <label for="email">Email <span class="req">*</span></label>
-          <input class="input <%= errors && errors.email ? 'invalid' : '' %>" type="email"
-                 id="email" name="email" value="<%= form.email || '' %>"
-                 placeholder="you@example.com" autofocus>
-          <% if (errors && errors.email) { %>
-            <span class="field-error"><%= errors.email[0] %></span>
-          <% } %>
-        </div>
+      <div class="auth-tabs" role="tablist">
+        <button type="button" class="auth-tab <%= openForm === 'admin' ? '' : 'active' %>"
+                data-target="panel-user" role="tab">Buyer / Seller Login</button>
+        <button type="button" class="auth-tab <%= openForm === 'admin' ? 'active' : '' %>"
+                data-target="panel-admin" role="tab">Admin Login</button>
+      </div>
 
-        <div class="field">
-          <label for="password">Password <span class="req">*</span></label>
-          <input class="input <%= errors && errors.password ? 'invalid' : '' %>" type="password"
-                 id="password" name="password" placeholder="Enter your password">
-          <% if (errors && errors.password) { %>
-            <span class="field-error"><%= errors.password[0] %></span>
-          <% } %>
-        </div>
+      <div class="auth-panel" id="panel-user" style="<%= openForm === 'admin' ? 'display:none' : '' %>">
+        <form method="post" action="/login" novalidate>
+          <div class="field">
+            <label for="email">Email <span class="req">*</span></label>
+            <input class="input <%= errors && errors.email ? 'invalid' : '' %>" type="email"
+                   id="email" name="email" value="<%= form.email || '' %>"
+                   placeholder="you@example.com" autofocus>
+            <% if (errors && errors.email) { %>
+              <span class="field-error"><%= errors.email[0] %></span>
+            <% } %>
+          </div>
 
-        <div class="field form-hint">
-          <a href="#">Forgot Password?</a>
-        </div>
+          <div class="field">
+            <label for="password">Password <span class="req">*</span></label>
+            <input class="input <%= errors && errors.password ? 'invalid' : '' %>" type="password"
+                   id="password" name="password" placeholder="Enter your password">
+            <% if (errors && errors.password) { %>
+              <span class="field-error"><%= errors.password[0] %></span>
+            <% } %>
+          </div>
 
-        <button class="btn btn-primary btn-block" type="submit">Login</button>
-      </form>
+          <div class="field form-hint">
+            <a href="#">Forgot Password?</a>
+          </div>
 
-      <p class="form-hint pt-12 center">
-        Don't have an account?
-        <a href="/register">Create Account</a>
-      </p>
+          <button class="btn btn-primary btn-block" type="submit">Login</button>
+        </form>
 
-      <p class="form-hint center">
-        <a href="/">&larr; Back to Home</a>
-      </p>
+        <p class="form-hint pt-12 center">
+          Don't have an account?
+          <a href="/register">Create Account</a>
+        </p>
+
+        <p class="form-hint center">
+          <a href="/">&larr; Back to Home</a>
+        </p>
+      </div>
+
+      <div class="auth-panel" id="panel-admin" style="<%= openForm === 'admin' ? '' : 'display:none' %>">
+        <form method="post" action="/login" novalidate>
+          <div class="field">
+            <label for="adminEmail">Admin Email <span class="req">*</span></label>
+            <input class="input" type="email"
+                   id="adminEmail" name="email" value="admin@sandronmart.com"
+                   placeholder="admin@sandronmart.com">
+          </div>
+
+          <div class="field">
+            <label for="adminPassword">Password <span class="req">*</span></label>
+            <input class="input" type="password"
+                   id="adminPassword" name="password" placeholder="Enter your password">
+          </div>
+
+          <button class="btn btn-primary btn-block" type="submit">Admin Login</button>
+        </form>
+
+        <p class="form-hint center">
+          <a href="/">&larr; Back to Home</a>
+        </p>
+      </div>
     </div>
   </section>
 </div>
@@ -75,5 +107,21 @@
         }
       });
     }
+
+    document.querySelectorAll('.auth-tabs .auth-tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        document.querySelectorAll('.auth-tabs .auth-tab').forEach(function (t) {
+          t.classList.remove('active');
+        });
+        tab.classList.add('active');
+        document.querySelectorAll('.auth-panel').forEach(function (panel) {
+          panel.style.display = 'none';
+        });
+        var target = document.getElementById(tab.getAttribute('data-target'));
+        if (target) {
+          target.style.display = 'block';
+        }
+      });
+    });
   });
 </script>

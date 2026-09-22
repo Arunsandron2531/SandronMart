@@ -1,0 +1,43 @@
+<%- include('../partials/header', { title: heading }) %>
+
+<div class="container">
+  <div class="page-head">
+    <div>
+      <h1><%= heading %></h1>
+      <p class="muted">Registered <%= heading.toLowerCase() %> accounts on SANDRONMART.</p>
+    </div>
+    <a class="btn btn-outline btn-sm" href="/admin/dashboard">&larr; Dashboard</a>
+  </div>
+
+  <% if (users.length === 0) { %>
+    <div class="empty-state">
+      <div class="empty-icon">👤</div>
+      <h3><%= emptyMessage %></h3>
+    </div>
+  <% } else { %>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Joined</th>
+          <% if (heading === 'Sellers') { %><th>Products</th><% } %>
+        </tr>
+      </thead>
+      <tbody>
+        <% users.forEach(function (user) { %>
+          <tr>
+            <td><strong><%= user.full_name %></strong></td>
+            <td><%= user.email %></td>
+            <td><%= user.phone %></td>
+            <td><%= formatLongDate(user.created_at) %></td>
+            <% if (heading === 'Sellers') { %><td><%= user.product_count %></td><% } %>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+
+<%- include('../partials/footer') %>

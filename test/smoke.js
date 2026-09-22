@@ -10,6 +10,7 @@ process.env.NODE_ENV = 'test';
 const rootDir = path.join(__dirname, '..');
 
 const app = require('../app');
+const appDb = require('../config/db');
 const { defaultProductImage } = require('../utils/product-images');
 const {
   addDays,
@@ -209,6 +210,69 @@ async function run() {
 
   r = await seller.request('GET', '/buyer/dashboard');
   assert(r.status === 403 && r.text.includes('403'), 'seller blocked from buyer dashboard (403)', `status=${r.status}`);
+
+  /* ===== Admin Login ===== */
+
+  r = await anon.request('GET', '/login');
+  assert(r.status === 200 && r.text.includes('Admin Login'), 'login page offers an Admin Login option', `status=${r.status}`);
+
+  r = await anon.request('GET', '/login?admin=1');
+  assert(r.status === 200 && r.text.includes('Admin Login') && r.text.includes('admin@sandronmart.com'), 'login?admin=1 opens the admin login form', `status=${r.status}`);
+
+  const adminRow = appDb.prepare("SELECT role FROM users WHERE email = 'admin@sandronmart.com'").get();
+  assert(adminRow && adminRow.role === 'ADMIN', 'default admin account auto-created with ADMIN role', adminRow && `role=${adminRow.role}`);
+
+  r = await anon.request('POST', '/register', {
+    fullName: 'Fake Admin', email: 'fakeadmin@example.com', phone: '+254712345684',
+    password: 'secret123', confirmPassword: 'secret123', role: 'ADMIN'
+  });
+  assert(r.status === 400 && r.text.includes('Buyer or Seller'), 'cannot self-register as an admin', `status=${r.status}`);
+
+  const admin = makeClient();
+  r = await admin.request('POST', '/login', { email: 'admin@sandronmart.com', password: 'admin123' });
+  assert(r.status === 302 && r.location === '/admin/dashboard', 'admin login redirects to /admin/dashboard', `status=${r.status} loc=${r.location}`);
+
+  r = await admin.request('GET', '/admin/dashboard');
+  assert(r.status === 200 && r.text.includes('SANDRONMART Admin Dashboard'), 'admin dashboard accessible', `status=${r.status}`);
+  assert(r.text.includes('ADMIN'), 'admin dashboard shows ADMIN role badge');
+  assert(r.text.includes('Total Products') && r.text.includes('Total Buyers') && r.text.includes('Total Sellers') && r.text.includes('Total Orders'), 'admin dashboard shows all four totals');
+
+  r = await admin.request('GET', '/admin/products');
+  assert(r.status === 200 && r.text.includes('All Products'), 'admin products page accessible', `status=${r.status}`);
+  assert(!r.text.includes('Add Product'), 'admin products page is read-only (no seller actions)');
+
+  r = await admin.request('GET', '/admin/buyers');
+  assert(r.status === 200 && r.text.includes('Buyers'), 'admin buyers page accessible', `status=${r.status}`);
+
+  r = await admin.request('GET', '/admin/sellers');
+  assert(r.status === 200 && r.text.includes('Sellers'), 'admin sellers page accessible', `status=${r.status}`);
+
+  r = await admin.request('GET', '/admin/orders');
+  assert(r.status === 200 && r.text.includes('All Orders'), 'admin orders page accessible', `status=${r.status}`);
+
+  r = await anon.request('GET', '/admin/dashboard');
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'anonymous admin dashboard redirects to login', `status=${r.status}`);
+
+  r = await buyer.request('GET', '/admin/dashboard');
+  assert(r.status === 403 && r.text.includes('403'), 'buyer blocked from admin dashboard (403)', `status=${r.status}`);
+
+  r = await seller.request('GET', '/admin/dashboard');
+  assert(r.status === 403 && r.text.includes('403'), 'seller blocked from admin dashboard (403)', `status=${r.status}`);
+
+  r = await buyer.request('GET', '/admin/products');
+  assert(r.status === 403 && r.text.includes('403'), 'buyer blocked from admin products (403)', `status=${r.status}`);
+
+  r = await admin.request('GET', '/buyer/dashboard');
+  assert(r.status === 403 && r.text.includes('403'), 'admin blocked from buyer dashboard (403)', `status=${r.status}`);
+
+  r = await admin.request('GET', '/seller/dashboard');
+  assert(r.status === 403 && r.text.includes('403'), 'admin blocked from seller dashboard (403)', `status=${r.status}`);
+
+  r = await buyer.request('GET', '/buyer/dashboard');
+  assert(r.status === 200 && r.text.includes('Jane Buyer'), 'buyer login still works after adding admin', `status=${r.status}`);
+
+  r = await seller.request('GET', '/seller/dashboard');
+  assert(r.status === 200 && r.text.includes('Sam Seller'), 'seller login still works after adding admin', `status=${r.status}`);
 
   /* ===== Seller Product Management ===== */
 
@@ -1126,6 +1190,36 @@ async function run() {
   ).get();
   assert(orphanOrderItems.c === 0, 'all order items reference a valid order');
 
+  /* ===== Admin data views reflect the database ===== */
+  const dbTotals = {
+    products: db.prepare('SELECT COUNT(*) AS c FROM products').get().c,
+    buyers: db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'BUYER'").get().c,
+    sellers: db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'SELLER'").get().c,
+    orders: db.prepare('SELECT COUNT(*) AS c FROM orders').get().c,
+  };
+  r = await admin.request('GET', '/admin/dashboard');
+  for (const key of ['products', 'buyers', 'sellers', 'orders']) {
+    const m = r.text.match(new RegExp('id="admin-stat-' + key + '">(\\d+)<'));
+    assert(m && Number(m[1]) === dbTotals[key], 'admin dashboard shows correct ' + key + ' total', m ? `shown=${m[1]} db=${dbTotals[key]}` : 'stat not found');
+  }
+  const recentOrderNumber = db.prepare('SELECT order_number FROM orders ORDER BY id DESC LIMIT 1').get().order_number;
+  assert(r.text.includes(recentOrderNumber), 'admin dashboard recent orders lists latest order', recentOrderNumber);
+
+  const orderNumbers = db.prepare('SELECT order_number FROM orders ORDER BY id').all().map((o) => o.order_number);
+  r = await admin.request('GET', '/admin/orders');
+  for (const number of orderNumbers) {
+    assert(r.text.includes(number), 'admin orders page lists every order', number);
+  }
+
+  r = await admin.request('GET', '/admin/products');
+  assert(r.text.includes('Monstera Albo') && r.text.includes('Tomato Plant'), 'admin products page lists products from all sellers');
+
+  r = await admin.request('GET', '/admin/buyers');
+  assert(r.text.includes('Buyers') && r.text.includes('Jane Buyer') && r.text.includes('jane@example.com'), 'admin buyers page lists buyer accounts');
+
+  r = await admin.request('GET', '/admin/sellers');
+  assert(r.text.includes('Sellers') && r.text.includes('Sam Seller') && r.text.includes('Otto Seller'), 'admin sellers page lists seller accounts');
+
   db.close();
   require('../config/db').close();
   await new Promise((resolve) => setTimeout(resolve, 50));
@@ -1141,20 +1235,23 @@ async function run() {
     const db = require(${JSON.stringify(path.join(process.cwd(), 'config', 'db.js'))});
     const products = db.prepare('SELECT id, name, category FROM products ORDER BY id').all();
     const sellers = db.prepare('SELECT id, role FROM users WHERE role = ?').all('SELLER');
-    console.log(JSON.stringify({ products, sellers }));
+    const admins = db.prepare("SELECT id, role FROM users WHERE email = ?").all('admin@sandronmart.com');
+    const adminCountAfter = db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'ADMIN'").get().c;
+    console.log(JSON.stringify({ products, sellers, admins, adminCountAfter }));
     db.close();
   `;
   let seeded;
   try {
     seeded = JSON.parse(execFileSync(process.execPath, ['-e', probe], { env: seedEnv, encoding: 'utf8' }));
   } catch (e) {
-    seeded = { products: [], sellers: [], error: String(e) };
+    seeded = { products: [], sellers: [], admins: [], error: String(e) };
   }
   assert(seeded.products.length > 0, 'fresh database is seeded with products on init', seeded.error || ('count=' + seeded.products.length));
   assert(seeded.products.some((p) => p.name === 'Money Plant' && p.category === 'Indoor Plants'), 'seeded catalog covers multiple categories');
   assert(seeded.products.some((p) => p.category === 'Pots & Planters') && seeded.products.some((p) => p.category === 'Fertilizers'), 'seeded catalog spans all category groups');
   assert(seeded.products.some((p) => p.category === 'Seeds') && seeded.products.some((p) => p.category === 'Herbs & Vegetables') && seeded.products.some((p) => p.category === 'Gardening Tools'), 'seeded catalog covers remaining categories');
   assert(seeded.sellers.length > 0, 'seed creates a demo seller account', 'count=' + seeded.sellers.length);
+  assert(seeded.admins.length === 1 && seeded.admins[0].role === 'ADMIN' && seeded.adminCountAfter === 1, 'fresh database auto-creates exactly one admin account', seeded.admins.length + '/' + seeded.adminCountAfter);
   for (const suffix of ['', '-wal', '-shm']) {
     try { fs.unlinkSync(seededDb + suffix); } catch (e) { /* ignore */ }
   }

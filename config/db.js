@@ -26,10 +26,37 @@ db.exec(`
     email         TEXT    NOT NULL UNIQUE,
     phone         TEXT    NOT NULL,
     password_hash TEXT    NOT NULL,
-    role          TEXT    NOT NULL CHECK (role IN ('BUYER', 'SELLER')),
+    role          TEXT    NOT NULL CHECK (role IN ('BUYER', 'SELLER', 'ADMIN')),
     created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+// Databases created before the admin role existed baked the CHECK constraint as
+// role IN ('BUYER','SELLER'). Rebuild the users table there so the role column
+// accepts 'ADMIN' too. Existing rows keep their ids (so products/carts/orders
+// stay linked) and no data is lost.
+const usersDdl = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'").get();
+if (usersDdl && /CHECK\s*\(role/.test(usersDdl.sql) && !/'ADMIN'/.test(usersDdl.sql)) {
+  db.pragma('foreign_keys = OFF');
+  db.exec(`
+    CREATE TABLE users_new (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      full_name     TEXT    NOT NULL,
+      email         TEXT    NOT NULL UNIQUE,
+      phone         TEXT    NOT NULL,
+      password_hash TEXT    NOT NULL,
+      role          TEXT    NOT NULL CHECK (role IN ('BUYER', 'SELLER', 'ADMIN')),
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.prepare(
+    `INSERT INTO users_new (id, full_name, email, phone, password_hash, role, created_at)
+     SELECT id, full_name, email, phone, password_hash, role, created_at FROM users`
+  ).run();
+  db.exec('DROP TABLE users;');
+  db.exec('ALTER TABLE users_new RENAME TO users;');
+  db.pragma('foreign_keys = ON');
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS products (
@@ -143,6 +170,8 @@ db.exec('CREATE INDEX IF NOT EXISTS idx_order_status_events_order_id ON order_st
 if (process.env.NODE_ENV !== 'test') {
   require('./seed')(db);
 }
+
+require('./admin-seed').ensureAdminUser(db);
 
 db.pragma('wal_checkpoint(TRUNCATE)');
 

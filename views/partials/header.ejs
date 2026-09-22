@@ -22,6 +22,12 @@
             <a class="nav-link" href="/seller/dashboard">Dashboard</a>
             <a class="nav-link" href="/seller/products">My Products</a>
             <a class="nav-link" href="/seller/orders">Orders</a>
+          <% } else if (currentUser.role === 'ADMIN') { %>
+            <a class="nav-link" href="/admin/dashboard">Dashboard</a>
+            <a class="nav-link" href="/admin/products">Products</a>
+            <a class="nav-link" href="/admin/buyers">Buyers</a>
+            <a class="nav-link" href="/admin/sellers">Sellers</a>
+            <a class="nav-link" href="/admin/orders">Orders</a>
           <% } else { %>
             <a class="nav-link" href="/buyer/dashboard">Home</a>
             <a class="nav-link" href="/buyer/products">Products</a>

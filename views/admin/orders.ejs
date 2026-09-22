@@ -1,0 +1,48 @@
+<%- include('../partials/header', { title: 'All Orders' }) %>
+
+<div class="container">
+  <div class="page-head">
+    <div>
+      <h1>All Orders</h1>
+      <p class="muted">Every order placed on SANDRONMART.</p>
+    </div>
+    <a class="btn btn-outline btn-sm" href="/admin/dashboard">&larr; Dashboard</a>
+  </div>
+
+  <% if (orders.length === 0) { %>
+    <div class="empty-state">
+      <div class="empty-icon">📦</div>
+      <h3>No orders yet</h3>
+      <p>Orders will appear here once buyers place them.</p>
+    </div>
+  <% } else { %>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Order</th>
+            <th>Buyer</th>
+            <th>Placed</th>
+            <th>Payment</th>
+            <th>Total</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% orders.forEach(function (order) { %>
+            <tr>
+              <td><strong><%= order.order_number %></strong></td>
+              <td><%= order.buyer_name %><br><span class="muted"><%= order.buyer_email %></span></td>
+              <td><%= order.placedAtLabel %></td>
+              <td><%= order.payment_method === 'COD' ? 'Cash on Delivery' : (order.payment_method === 'UPI' ? 'UPI' : 'Card') %></td>
+              <td><%= formatINR(order.total) %></td>
+              <td><span class="status-badge status-<%= order.status.toLowerCase() %>"><%= order.statusLabel %></span></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/footer') %>
