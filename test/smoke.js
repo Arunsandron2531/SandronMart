@@ -7,7 +7,10 @@ process.env.DB_PATH = testDb;
 process.env.SESSION_SECRET = 'smoke-test-secret';
 process.env.NODE_ENV = 'test';
 
+const rootDir = path.join(__dirname, '..');
+
 const app = require('../app');
+const { defaultProductImage } = require('../utils/product-images');
 const {
   addDays,
   toISODate,
@@ -474,7 +477,7 @@ async function run() {
   r = await buyer.request('GET', '/buyer/products');
   assert(r.text.includes('name="search"') && r.text.includes('name="category"') && r.text.includes('All Categories'), 'search form field names match backend params');
 
-  /* ===== Product image defaults (local, category-based) ===== */
+  /* ===== Product image defaults (local, name-based) ===== */
   r = await buyer.request('GET', '/buyer/products');
   assert(r.text.includes('/js/product-image.js'), 'shared product image fallback script loaded on product pages');
   const expectedUploadedSrcs = {
@@ -484,21 +487,21 @@ async function run() {
     'Broken Image Fern': 'https://example.invalid/nope.jpg',
   };
   const expectedDefaultFiles = {
-    'Monstera Albo': 'indoor-plants.svg',
-    'Rose Bush': 'outdoor-plants.svg',
-    'Garden Trowel': 'gardening-tools.svg',
-    'Broken Image Fern': 'outdoor-plants.svg',
-    'Tomato Plant': 'herbs-vegetables.svg',
-    'Money Plant': 'indoor-plants.svg',
-    'Terracotta Pot': 'pots-planters.svg',
-    'Organic Compost': 'fertilizers.svg',
-    'Pea Seeds': 'seeds.svg',
+    'Monstera Albo': 'monstera.jpg',
+    'Rose Bush': 'rose.jpg',
+    'Garden Trowel': 'garden-trowel.jpg',
+    'Broken Image Fern': 'fern.jpg',
+    'Tomato Plant': 'tomato.jpg',
+    'Money Plant': 'money-plant.jpg',
+    'Terracotta Pot': 'plant-pot.jpg',
+    'Organic Compost': 'compost.jpg',
+    'Pea Seeds': 'pea-seeds.jpg',
   };
   const cards = r.text.split('class="product-card"').slice(1);
   assert(cards.length >= 9, 'every product on the browse page renders a product card', `cards=${cards.length}`);
   for (const [name, file] of Object.entries(expectedDefaultFiles)) {
     const card = cards.find((c) => c.includes(name));
-    assert(card && card.includes('data-default-image="/assets/images/products/' + file + '"'), `card for ${name} wires category default image (${file})`, card ? 'missing data-default-image' : 'card not found');
+    assert(card && card.includes('data-default-image="/assets/images/products/' + file + '"'), `card for ${name} wires a product-specific default image (${file})`, card ? 'missing data-default-image' : 'card not found');
   }
   for (const [name, src] of Object.entries(expectedUploadedSrcs)) {
     const card = cards.find((c) => c.includes(name));
@@ -507,21 +510,54 @@ async function run() {
   for (const name of ['Tomato Plant', 'Money Plant', 'Terracotta Pot', 'Organic Compost', 'Pea Seeds']) {
     const card = cards.find((c) => c.includes(name));
     const file = expectedDefaultFiles[name];
-    assert(card && card.includes('src="/assets/images/products/' + file + '"'), `card for ${name} uses the category default directly`, card ? 'missing default src' : 'card not found');
+    assert(card && card.includes('src="/assets/images/products/' + file + '"'), `card for ${name} uses its product-specific default directly`, card ? 'missing default src' : 'card not found');
   }
   assert((r.text.match(/data-default-image=/g) || []).length === cards.length, 'every product card image has a fallback wired', `imgs=${(r.text.match(/data-default-image=/g) || []).length} cards=${cards.length}`);
 
-  for (const file of ['default.svg', 'plants.svg', 'indoor-plants.svg', 'outdoor-plants.svg', 'flower-plants.svg', 'herbs-vegetables.svg', 'seeds.svg', 'pots-planters.svg', 'gardening-tools.svg', 'fertilizers.svg', 'soil-potting-mix.svg', 'plant-accessories.svg']) {
+  const productImageFiles = fs.readdirSync(path.join(rootDir, 'public', 'assets', 'images', 'products')).filter((f) => f.endsWith('.jpg'));
+  assert(productImageFiles.length === 23, 'expected 23 local product photos', `files=${productImageFiles.length}`);
+  for (const file of productImageFiles) {
     r = await anon.request('GET', '/assets/images/products/' + file);
-    assert(r.status === 200 && r.text.includes('<svg'), file + ' served locally as a static asset', 'status=' + r.status);
+    assert(r.status === 200 && r.text.length > 1000, file + ' served locally as a static asset', 'status=' + r.status);
   }
-  r = await anon.request('GET', '/assets/images/products/default.svg');
+  r = await anon.request('GET', '/assets/images/products/default.jpg');
   assert(r.status === 200, 'default product image reachable without login', 'status=' + r.status);
+
+  /* ===== Every seeded product gets its own realistic local photo ===== */
+  const seededCases = [
+    ['Snake Plant', 'Indoor Plants', 'snake-plant.jpg'],
+    ['Money Plant', 'Indoor Plants', 'money-plant.jpg'],
+    ['Succulent Mix', 'Indoor Plants', 'succulent-mix.jpg'],
+    ['Rose Plant', 'Outdoor Plants', 'rose.jpg'],
+    ['Lavender Plant', 'Outdoor Plants', 'lavender.jpg'],
+    ['Pea Seeds', 'Seeds', 'pea-seeds.jpg'],
+    ['Sunflower Seeds', 'Seeds', 'sunflower-seeds.jpg'],
+    ['Plant Pot', 'Pots & Planters', 'plant-pot.jpg'],
+    ['Hanging Basket', 'Pots & Planters', 'hanging-basket.jpg'],
+    ['Garden Trowel', 'Gardening Tools', 'garden-trowel.jpg'],
+    ['Watering Can', 'Gardening Tools', 'watering-can.jpg'],
+    ['Organic Compost', 'Fertilizers', 'compost.jpg'],
+    ['Liquid Fertilizer', 'Fertilizers', 'liquid-fertilizer.jpg'],
+    ['Tomato Plant', 'Herbs & Vegetables', 'tomato.jpg'],
+    ['Basil Plant', 'Herbs & Vegetables', 'basil.jpg'],
+  ];
+  const seenImages = new Set();
+  for (const [name, category, expected] of seededCases) {
+    const img = defaultProductImage({ name, category });
+    assert(img === '/assets/images/products/' + expected, `seeded product "${name}" maps to its own photo (${expected})`, img);
+    assert(fs.existsSync(path.join(rootDir, 'public', img)), `photo file exists for "${name}"`, img);
+    assert(!seenImages.has(img), `seeded products get DISTINCT photos (duplicate ${img})`);
+    seenImages.add(img);
+  }
+  assert(seenImages.size === seededCases.length && !seenImages.has('/assets/images/products/default.jpg'), 'no seeded product reuses the generic default', `distinct=${seenImages.size}`);
+  assert(defaultProductImage({ name: 'Custom Pot with stand', category: 'Pots & Planters' }) === '/assets/images/products/plant-pot.jpg', 'category-only fallback still picks a real photo');
+  assert(defaultProductImage('Pots & Planters') === '/assets/images/products/plant-pot.jpg', 'plain category string still resolves via category fallback');
+  assert(defaultProductImage({ name: 'Mystery Widget', category: 'Mystery' }) === '/assets/images/products/default.jpg', 'fully unknown product uses the generic default');
 
   r = await buyer.request('GET', `/buyer/products/${idMonstera}`);
   assert(r.status === 200 && r.text.includes('Monstera Albo'), 'buyer opens product detail', `status=${r.status}`);
   assert(r.text.includes('src="https://example.com/albo.jpg"'), 'detail page keeps the uploaded product image');
-  assert(r.text.includes('data-default-image="/assets/images/products/indoor-plants.svg"'), 'detail page wires category default image fallback');
+  assert(r.text.includes('data-default-image="/assets/images/products/monstera.jpg"'), 'detail page wires a product-specific default image fallback');
   assert(r.text.includes('Indoor Plants') && r.text.includes('\u20B939.99'), 'detail shows category and price');
   assert(r.text.includes('7 in stock'), 'detail shows available stock');
   assert(r.text.includes('Sam Seller'), 'detail shows seller information');
@@ -537,8 +573,8 @@ async function run() {
   const idTomatoPlant = extractBuyerProductId(r.text, 'Tomato Plant');
   assert(idTomatoPlant !== null, 'no-image product id extracted', `id=${idTomatoPlant}`);
   r = await buyer.request('GET', `/buyer/products/${idTomatoPlant}`);
-  assert(r.status === 200 && r.text.includes('src="/assets/images/products/herbs-vegetables.svg"'), 'no-image product detail shows its category default immediately', `status=${r.status}`);
-  assert(r.text.includes('data-default-image="/assets/images/products/herbs-vegetables.svg"'), 'no-image product detail has fallback wired');
+  assert(r.status === 200 && r.text.includes('src="/assets/images/products/tomato.jpg"'), 'no-image product detail shows its product-specific default immediately', `status=${r.status}`);
+  assert(r.text.includes('data-default-image="/assets/images/products/tomato.jpg"'), 'no-image product detail has fallback wired');
 
   r = await buyer.request('GET', '/buyer/account');
   assert(r.status === 200 && r.text.includes('My Account'), 'buyer account page renders', `status=${r.status}`);
@@ -597,7 +633,7 @@ async function run() {
   assert(r.text.includes('Product added to your cart.'), 'added success message shown');
   assert(r.text.includes('Monstera Albo') && r.text.includes('Indoor Plants'), 'cart lists product with category');
   assert(r.text.includes('src="https://example.com/albo.jpg"'), 'cart keeps the uploaded product image');
-  assert(r.text.includes('data-default-image="/assets/images/products/indoor-plants.svg"'), 'cart item wires category default image fallback');
+  assert(r.text.includes('data-default-image="/assets/images/products/monstera.jpg"'), 'cart item wires a product-specific default image fallback');
   assert(r.text.includes('\u20B939.99') && r.text.includes('2'), 'cart shows unit price and quantity');
   assert(r.text.includes('\u20B979.98'), 'cart shows subtotal');
   assert(r.text.includes('href="/buyer/cart"'), 'cart page has cart nav link');
@@ -804,7 +840,7 @@ async function run() {
   assert(r.text.includes('Cash on Delivery') && r.text.includes('UPI') && r.text.includes('Credit / Debit Card'), 'checkout shows Indian-friendly payment methods');
   assert(r.text.includes('Monstera Albo') && r.text.includes('\u20B939.99') && r.text.includes('\u20B979.98'), 'checkout shows items priced in INR');
   assert(r.text.includes('Grand Total') && r.text.includes('\u20B9119.98'), 'checkout shows grand total with delivery charge');
-  assert(r.text.includes('data-default-image="/assets/images/products/indoor-plants.svg"'), 'checkout summary wires category default image fallback');
+  assert(r.text.includes('data-default-image="/assets/images/products/monstera.jpg"'), 'checkout summary wires a product-specific default image fallback');
   assert(r.text.includes('/js/product-image.js'), 'checkout loads shared image fallback script');
   assert(r.text.includes('Place Order'), 'checkout shows place order button');
   assert(/Expected Delivery/.test(r.text), 'checkout shows expected delivery window');
@@ -875,7 +911,7 @@ async function run() {
   assert(r.text.includes('Monstera Albo') && /SM\d{12}/.test(r.text), 'my orders shows placed order and order id');
   assert(r.text.includes('3:00 PM - 6:00 PM') && r.text.includes('Cash on Delivery'), 'my orders shows delivery time and payment');
   assert(r.text.includes('View Details') && r.text.includes('Track Order'), 'my orders has view details + track buttons');
-  assert(r.text.includes('data-default-image="/assets/images/products/default.svg"'), 'my orders uses generic default fallback for order items');
+  assert(r.text.includes('data-default-image="/assets/images/products/monstera.jpg"'), 'my orders uses product-specific default fallback for order items');
   assert(r.text.includes('src="https://example.com/albo.jpg"'), 'my orders keeps the snapshot of the uploaded product image');
   assert(r.text.includes(formatDateRange(checkoutWindow.start, checkoutWindow.end)), 'my orders preserves the original delivery window', formatDateRange(checkoutWindow.start, checkoutWindow.end));
 
@@ -886,7 +922,7 @@ async function run() {
   assert(r.text.includes('3:00 PM - 6:00 PM') && r.text.includes('Cash on Delivery'), 'order details shows time slot and payment');
   assert(r.text.includes('\u20B940.00') && r.text.includes('\u20B9119.98'), 'order details shows delivery charge and grand total');
   assert(r.text.includes('Track Order'), 'order details has track order button');
-  assert(r.text.includes('data-default-image="/assets/images/products/default.svg"'), 'order details uses generic default fallback for order items');
+  assert(r.text.includes('data-default-image="/assets/images/products/monstera.jpg"'), 'order details uses product-specific default fallback for order items');
   assert(r.text.includes(formatDateRange(checkoutWindow.start, checkoutWindow.end)), 'order details preserves the original delivery window', formatDateRange(checkoutWindow.start, checkoutWindow.end));
 
   /* --- Order Tracking --- */
@@ -905,7 +941,7 @@ async function run() {
   assert(r.text.includes('Gandhi Street') && r.text.includes('631501'), 'seller sees delivery address');
   assert(r.text.includes('3:00 PM - 6:00 PM') && r.text.includes('Cash on Delivery'), 'seller sees time slot and payment method');
   assert(r.text.includes('\u20B9119.98'), 'seller sees order amount in INR');
-  assert(r.text.includes('data-default-image="/assets/images/products/default.svg"'), 'seller order list uses generic default fallback for order items');
+  assert(r.text.includes('data-default-image="/assets/images/products/monstera.jpg"'), 'seller order list uses product-specific default fallback for order items');
 
   r = await sellerB.request('GET', '/seller/orders');
   assert(r.status === 200 && !r.text.includes('Monstera Albo'), 'other seller cannot see unrelated order', `status=${r.status}`);

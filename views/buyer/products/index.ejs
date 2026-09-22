@@ -34,8 +34,8 @@
       <% products.forEach(function (product) { %>
         <div class="product-card">
           <img class="product-thumb" src="<%= productImage(product) %>" alt="<%= product.name %>"
-               loading="lazy" data-default-image="<%= defaultProductImage(product.category) %>">
-          <div class="product-thumb product-thumb-fallback image-fallback" style="display:none;">🌱</div>
+               loading="lazy" data-default-image="<%= defaultProductImage(product) %>">
+          <div class="product-thumb product-thumb-fallback image-fallback" style="display:none;"></div>
           <div class="product-body">
             <div class="product-meta">
               <span class="product-category"><%= product.category %></span>

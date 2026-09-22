@@ -36,8 +36,8 @@
               <% order.items.forEach(function (item) { %>
                 <div class="order-product">
                   <img src="<%= productImage(item) %>" alt="" loading="lazy"
-                       data-default-image="<%= defaultProductImage(item.category) %>">
-                  <div class="order-product-fallback image-fallback" style="display:none;">🌱</div>
+                       data-default-image="<%= defaultProductImage(item) %>">
+                  <div class="order-product-fallback image-fallback" style="display:none;"></div>
                   <div>
                     <div class="order-product-name"><%= item.name %></div>
                     <div class="muted"><%= formatINR(item.price) %> &times; <%= item.quantity %></div>

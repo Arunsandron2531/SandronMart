@@ -117,10 +117,12 @@ as `https://example.com/plant.jpg`), stored in `products.image_url`. Because ima
 
 - ✅ No image upload code, temp upload folder, or object storage is required right now.
 - ✅ If a product has **no image URL** (or the URL fails to load), the site automatically shows a
-  **category-based default image** stored locally in `public/assets/images/products/*.svg`
-  (static files, shipped with the repo — no external image service). Logic lives in
-  `utils/product-images.js` + `public/js/product-image.js` and is applied on every product,
-  cart, checkout, and order page.
+  **product-specific default photo** (a real, locally stored image matched from the product name,
+  e.g. `rose.jpg`, `plant-pot.jpg`) with a name → category → generic fallback chain. The photos
+  live in `public/assets/images/products/*.jpg` (static files, shipped with the repo — no external
+  image service at runtime; licensing credits in `public/assets/images/products/ATTRIBUTION.md`).
+  Logic lives in `utils/product-images.js` + `public/js/product-image.js` and is applied on every
+  product, cart, checkout, and order page.
 - ⚠️ If you later add real file uploads (multipart), they must be saved to the **mounted disk**
   (under `/var/data/uploads`) or to object storage (e.g. AWS S3 / Render Disks) — otherwise uploaded
   images would be lost on redeploy. Until then, nothing extra is needed.

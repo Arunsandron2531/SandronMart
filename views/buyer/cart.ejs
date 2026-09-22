@@ -28,8 +28,8 @@
         <div class="cart-item">
           <div class="cart-thumb">
             <img class="cart-image" src="<%= productImage(item) %>" alt="<%= item.name %>"
-                 loading="lazy" data-default-image="<%= defaultProductImage(item.category) %>">
-            <div class="cart-image cart-image-fallback image-fallback" style="display:none;">🌱</div>
+                 loading="lazy" data-default-image="<%= defaultProductImage(item) %>">
+            <div class="cart-image cart-image-fallback image-fallback" style="display:none;"></div>
           </div>
           <div class="cart-info">
             <span class="product-category"><%= item.category %></span>

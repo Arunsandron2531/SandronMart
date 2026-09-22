@@ -683,6 +683,16 @@ a:hover {
   color: var(--green-600);
 }
 
+.product-thumb-fallback,
+.detail-image-fallback,
+.cart-image-fallback,
+.summary-fallback,
+.order-product-fallback {
+  background-image: url('/assets/images/products/default.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
 .product-body {
   padding: 20px;
   display: flex;

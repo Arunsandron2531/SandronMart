@@ -1,27 +1,87 @@
 const PRODUCT_IMAGE_PATH = '/assets/images/products/';
-const DEFAULT_PRODUCT_IMAGE = PRODUCT_IMAGE_PATH + 'default.svg';
+const DEFAULT_PRODUCT_IMAGE = PRODUCT_IMAGE_PATH + 'default.jpg';
 
-const CATEGORY_IMAGE_FILES = {
-  'Indoor Plants': 'indoor-plants.svg',
-  'Outdoor Plants': 'outdoor-plants.svg',
-  'Plants': 'plants.svg',
-  'Flower Plants': 'flower-plants.svg',
-  'Herbs & Vegetables': 'herbs-vegetables.svg',
-  'Seeds': 'seeds.svg',
-  'Pots & Planters': 'pots-planters.svg',
-  'Gardening Tools': 'gardening-tools.svg',
-  'Fertilizers': 'fertilizers.svg',
-  'Fertilizers / Manure': 'fertilizers.svg',
-  'Manure': 'fertilizers.svg',
-  'Soil / Potting Mix': 'soil-potting-mix.svg',
-  'Soil': 'soil-potting-mix.svg',
-  'Plant Accessories': 'plant-accessories.svg',
+// Ordered keyword rules: the first rule whose keyword appears in the product name
+// wins, so we match the SPECIFIC product before anything generic
+// (e.g. "Rose Seeds" -> rose-seeds.jpg, not the rose photo).
+const KEYWORD_RULES = [
+  { keys: ['rose seeds', 'rose seed'], img: 'rose-seeds.jpg' },
+  { keys: ['neem'], img: 'neem.jpg' },
+  { keys: ['tulsi', 'holy basil'], img: 'tulsi.jpg' },
+  { keys: ['aloe'], img: 'aloe-vera.jpg' },
+  { keys: ['snake plant', 'sansevieria', 'mother in law'], img: 'snake-plant.jpg' },
+  { keys: ['money plant', 'pothos', 'money'], img: 'money-plant.jpg' },
+  { keys: ['monstera'], img: 'monstera.jpg' },
+  { keys: ['lavender', 'lavandula'], img: 'lavender.jpg' },
+  { keys: ['succulent'], img: 'succulent-mix.jpg' },
+  { keys: ['pea'], img: 'pea-seeds.jpg' },
+  { keys: ['sunflower'], img: 'sunflower-seeds.jpg' },
+  { keys: ['seed'], img: 'pea-seeds.jpg' },
+  { keys: ['rose'], img: 'rose.jpg' },
+  { keys: ['tomato'], img: 'tomato.jpg' },
+  { keys: ['basil'], img: 'basil.jpg' },
+  { keys: ['fern'], img: 'fern.jpg' },
+  { keys: ['compost'], img: 'compost.jpg' },
+  { keys: ['manure'], img: 'compost.jpg' },
+  { keys: ['fertiliz'], img: 'liquid-fertilizer.jpg' },
+  { keys: ['hanging basket'], img: 'hanging-basket.jpg' },
+  { keys: ['basket'], img: 'hanging-basket.jpg' },
+  { keys: ['terracotta'], img: 'plant-pot.jpg' },
+  { keys: ['pot'], img: 'plant-pot.jpg' },
+  { keys: ['planter'], img: 'plant-pot.jpg' },
+  { keys: ['trowel'], img: 'garden-trowel.jpg' },
+  { keys: ['watering'], img: 'watering-can.jpg' },
+];
+
+// Category fallback: only used when the product name itself gives no clue.
+// Each category still maps to a REAL photo of a typical product in that range,
+// so we never fall straight to one generic image.
+const CATEGORY_IMAGE_MAP = {
+  'Indoor Plants': 'snake-plant.jpg',
+  'Outdoor Plants': 'rose.jpg',
+  'Flower Plants': 'rose.jpg',
+  'Plants': 'monstera.jpg',
+  'Seeds': 'pea-seeds.jpg',
+  'Pots & Planters': 'plant-pot.jpg',
+  'Gardening Tools': 'garden-trowel.jpg',
+  'Fertilizers': 'compost.jpg',
+  'Fertilizers / Manure': 'compost.jpg',
+  'Manure': 'compost.jpg',
+  'Soil / Potting Mix': 'soil.jpg',
+  'Soil': 'soil.jpg',
+  'Plant Accessories': 'hanging-basket.jpg',
+  'Herbs & Vegetables': 'basil.jpg',
 };
 
-function defaultProductImage(category) {
-  if (category && Object.prototype.hasOwnProperty.call(CATEGORY_IMAGE_FILES, category)) {
-    return PRODUCT_IMAGE_PATH + CATEGORY_IMAGE_FILES[category];
+function nameMatch(name) {
+  const n = String(name || '').toLowerCase();
+  if (!n) {
+    return null;
   }
+  for (const rule of KEYWORD_RULES) {
+    for (const key of rule.keys) {
+      if (n.includes(key)) {
+        return rule.img;
+      }
+    }
+  }
+  return null;
+}
+
+function defaultProductImage(product) {
+  const isPlainString = typeof product === 'string';
+  const name = isPlainString ? null : (product && product.name);
+  const category = isPlainString ? product : (product && product.category);
+
+  const byName = nameMatch(name);
+  if (byName) {
+    return PRODUCT_IMAGE_PATH + byName;
+  }
+
+  if (category && Object.prototype.hasOwnProperty.call(CATEGORY_IMAGE_MAP, category)) {
+    return PRODUCT_IMAGE_PATH + CATEGORY_IMAGE_MAP[category];
+  }
+
   return DEFAULT_PRODUCT_IMAGE;
 }
 
@@ -30,13 +90,14 @@ function productImage(productOrItem) {
   if (typeof url === 'string' && url.trim()) {
     return url.trim();
   }
-  return defaultProductImage(productOrItem && productOrItem.category);
+  return defaultProductImage(productOrItem);
 }
 
 module.exports = {
   PRODUCT_IMAGE_PATH,
   DEFAULT_PRODUCT_IMAGE,
-  CATEGORY_IMAGE_FILES,
+  KEYWORD_RULES,
+  CATEGORY_IMAGE_MAP,
   defaultProductImage,
   productImage,
 };
