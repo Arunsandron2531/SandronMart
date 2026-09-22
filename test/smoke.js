@@ -211,16 +211,62 @@ async function run() {
   r = await seller.request('GET', '/buyer/dashboard');
   assert(r.status === 403 && r.text.includes('403'), 'seller blocked from buyer dashboard (403)', `status=${r.status}`);
 
-  /* ===== Admin Login ===== */
+  /* ===== Admin Setup & Login ===== */
 
   r = await anon.request('GET', '/login');
   assert(r.status === 200 && r.text.includes('Admin Login'), 'login page offers an Admin Login option', `status=${r.status}`);
 
   r = await anon.request('GET', '/login?admin=1');
-  assert(r.status === 200 && r.text.includes('Admin Login') && r.text.includes('admin@sandronmart.com'), 'login?admin=1 opens the admin login form', `status=${r.status}`);
+  assert(r.status === 200 && r.text.includes('Admin Login') && r.text.includes('/admin/setup'), 'admin panel asks for setup before an admin exists', `status=${r.status}`);
 
-  const adminRow = appDb.prepare("SELECT role FROM users WHERE email = 'admin@sandronmart.com'").get();
-  assert(adminRow && adminRow.role === 'ADMIN', 'default admin account auto-created with ADMIN role', adminRow && `role=${adminRow.role}`);
+  const noDefaultAdmin = appDb.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'ADMIN'").get();
+  assert(noDefaultAdmin.c === 0, 'no admin account auto-created with a default password', `count=${noDefaultAdmin.c}`);
+  const noHardcodedEmail = appDb.prepare("SELECT COUNT(*) AS c FROM users WHERE email = 'admin@sandronmart.com'").get();
+  assert(noHardcodedEmail.c === 0, 'no hardcoded admin email exists in the database', `count=${noHardcodedEmail.c}`);
+
+  r = await anon.request('GET', '/admin/setup');
+  assert(r.status === 200 && r.text.includes('Set Up Admin'), 'admin setup page renders', `status=${r.status}`);
+  assert(r.text.includes('name="email"') && r.text.includes('name="password"'), 'setup form collects email and password');
+
+  r = await anon.request('POST', '/admin/setup', {
+    fullName: 'Boss', email: 'boss@sandronmart.com', phone: '+254712345687',
+    password: '123', confirmPassword: '123'
+  });
+  assert(r.status === 400 && r.text.includes('at least 6 characters'), 'short admin password rejected', `status=${r.status}`);
+
+  r = await anon.request('POST', '/admin/setup', {
+    fullName: 'Boss', email: 'boss@sandronmart.com', phone: '+254712345687',
+    password: 'BossPass#2026', confirmPassword: 'notmatching'
+  });
+  assert(r.status === 400 && r.text.includes('Passwords do not match'), 'mismatched admin passwords rejected', `status=${r.status}`);
+
+  r = await anon.request('POST', '/admin/setup', {
+    fullName: 'Boss', email: 'not-an-email', phone: '+254712345687',
+    password: 'BossPass#2026', confirmPassword: 'BossPass#2026'
+  });
+  assert(r.status === 400 && r.text.includes('valid email address'), 'invalid admin email rejected', `status=${r.status}`);
+
+  r = await anon.request('POST', '/admin/setup', {
+    fullName: 'Boss', email: 'jane@example.com', phone: '+254712345687',
+    password: 'BossPass#2026', confirmPassword: 'BossPass#2026'
+  });
+  assert(r.status === 400 && r.text.includes('already exists'), 'admin email must not collide with an existing account', `status=${r.status}`);
+
+  r = await anon.request('POST', '/admin/setup', {
+    fullName: 'Sandron Boss', email: 'boss@sandronmart.com', phone: '+254712345687',
+    password: 'BossPass#2026', confirmPassword: 'BossPass#2026'
+  });
+  assert(r.status === 302 && (r.location || '').includes('/login?admin=1&setup=1'), 'first admin setup creates the admin and returns to login', `status=${r.status} loc=${r.location}`);
+
+  r = await anon.request('GET', '/login?admin=1&setup=1');
+  assert(r.status === 200 && r.text.includes('Admin account created. Please sign in.'), 'setup success message shown on admin login', `status=${r.status}`);
+  assert(!r.text.includes('value="admin@sandronmart.com"'), 'no default admin email is prefilled on the login form');
+
+  const adminCount = appDb.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'ADMIN'").get().c;
+  assert(adminCount === 1, 'exactly one admin created during setup', `count=${adminCount}`);
+  const adminHashRow = appDb.prepare("SELECT password_hash FROM users WHERE email = 'boss@sandronmart.com'").get();
+  assert(adminHashRow && adminHashRow.password_hash.startsWith('$2'), 'admin password stored as a bcrypt hash', adminHashRow ? adminHashRow.password_hash : 'missing');
+  assert(adminHashRow && adminHashRow.password_hash !== 'BossPass#2026', 'stored admin hash differs from plain text');
 
   r = await anon.request('POST', '/register', {
     fullName: 'Fake Admin', email: 'fakeadmin@example.com', phone: '+254712345684',
@@ -228,13 +274,27 @@ async function run() {
   });
   assert(r.status === 400 && r.text.includes('Buyer or Seller'), 'cannot self-register as an admin', `status=${r.status}`);
 
+  r = await anon.request('GET', '/admin/setup');
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'setup page locked once an admin exists', `status=${r.status} loc=${r.location}`);
+
+  r = await anon.request('POST', '/admin/setup', {
+    fullName: 'Second Boss', email: 'boss2@sandronmart.com', phone: '+254712345688',
+    password: 'BossPass#2026', confirmPassword: 'BossPass#2026'
+  });
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'duplicate admin setup attempt is rejected', `status=${r.status}`);
+  const lockedAdminCount = appDb.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'ADMIN'").get().c;
+  assert(lockedAdminCount === 1, 'no duplicate admin created after setup completes', `count=${lockedAdminCount}`);
+
   const admin = makeClient();
-  r = await admin.request('POST', '/login', { email: 'admin@sandronmart.com', password: 'admin123' });
+  r = await admin.request('POST', '/login', { email: 'boss@sandronmart.com', password: 'wrongpass' });
+  assert(r.status === 302 && (r.location || '').includes('/login?error=1&admin=1'), 'wrong admin password keeps the admin form open', `status=${r.status} loc=${r.location}`);
+
+  r = await admin.request('POST', '/login', { email: 'boss@sandronmart.com', password: 'BossPass#2026' });
   assert(r.status === 302 && r.location === '/admin/dashboard', 'admin login redirects to /admin/dashboard', `status=${r.status} loc=${r.location}`);
 
   r = await admin.request('GET', '/admin/dashboard');
   assert(r.status === 200 && r.text.includes('SANDRONMART Admin Dashboard'), 'admin dashboard accessible', `status=${r.status}`);
-  assert(r.text.includes('ADMIN'), 'admin dashboard shows ADMIN role badge');
+  assert(r.text.includes('Sandron Boss'), 'admin dashboard greets the configured admin by name');
   assert(r.text.includes('Total Products') && r.text.includes('Total Buyers') && r.text.includes('Total Sellers') && r.text.includes('Total Orders'), 'admin dashboard shows all four totals');
 
   r = await admin.request('GET', '/admin/products');
@@ -1251,7 +1311,7 @@ async function run() {
   assert(seeded.products.some((p) => p.category === 'Pots & Planters') && seeded.products.some((p) => p.category === 'Fertilizers'), 'seeded catalog spans all category groups');
   assert(seeded.products.some((p) => p.category === 'Seeds') && seeded.products.some((p) => p.category === 'Herbs & Vegetables') && seeded.products.some((p) => p.category === 'Gardening Tools'), 'seeded catalog covers remaining categories');
   assert(seeded.sellers.length > 0, 'seed creates a demo seller account', 'count=' + seeded.sellers.length);
-  assert(seeded.admins.length === 1 && seeded.admins[0].role === 'ADMIN' && seeded.adminCountAfter === 1, 'fresh database auto-creates exactly one admin account', seeded.admins.length + '/' + seeded.adminCountAfter);
+  assert(seeded.admins.length === 0 && seeded.adminCountAfter === 0, 'fresh database never auto-creates a default admin account', seeded.admins.length + '/' + seeded.adminCountAfter);
   for (const suffix of ['', '-wal', '-shm']) {
     try { fs.unlinkSync(seededDb + suffix); } catch (e) { /* ignore */ }
   }

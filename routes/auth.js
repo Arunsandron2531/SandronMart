@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../config/db');
 const { validateLogin, validateRegister } = require('../utils/validators');
+const { getAdminCount } = require('../config/admin-setup');
 
 const router = express.Router();
 
@@ -15,6 +16,7 @@ function emailTaken(email) {
 
 router.get('/login', (req, res) => {
   const openForm = req.query.admin ? 'admin' : 'login';
+  const setupMessage = req.query.setup ? 'Admin account created. Please sign in.' : null;
   res.render('login', {
     title: 'Login',
     errorMessage: req.query.error ? 'Invalid email or password. Please try again.' : null,
@@ -22,9 +24,10 @@ router.get('/login', (req, res) => {
       ? 'You have been logged out successfully.'
       : req.query.registered
         ? 'Account created successfully. Please sign in.'
-        : null,
+        : setupMessage,
     form: { email: openForm === 'admin' ? (req.query.email || '') : '' },
     openForm,
+    adminConfigured: getAdminCount(db) > 0,
     errors: {},
   });
 });
@@ -45,7 +48,11 @@ router.post('/login', (req, res) => {
   }
 
   const user = findUserByEmail(email);
+  const adminAttempt = user && user.role === 'ADMIN';
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+    if (adminAttempt) {
+      return res.redirect(`/login?error=1&admin=1&email=${encodeURIComponent(email)}`);
+    }
     return res.redirect('/login?error=1');
   }
 

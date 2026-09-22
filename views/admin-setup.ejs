@@ -1,0 +1,84 @@
+<%- include('partials/header', { title: 'Set Up Admin Account' }) %>
+
+<div class="auth-wrap">
+  <aside class="auth-side">
+    <div class="brand-mark">🌱</div>
+    <h2>Secure the admin login.</h2>
+    <p>This one-time setup creates the store's administrator account. Choose an email and password only you will know &mdash; they are stored securely using the same password hashing as every other account.</p>
+    <div class="points">
+      <div class="point"><span>✓</span> One-time first-run setup</div>
+      <div class="point"><span>✓</span> Password hashed with bcrypt</div>
+      <div class="point"><span>✓</span> No default credentials</div>
+    </div>
+  </aside>
+
+  <section class="auth-main">
+    <div class="auth-card">
+      <h1 class="auth-title">Set Up Admin Account</h1>
+      <p class="auth-sub">Create the administrator login for SANDRONMART.</p>
+
+      <% if (Object.keys(errors || {}).length > 0) { %>
+        <div class="alert alert-error">Please fix the highlighted fields below.</div>
+      <% } %>
+
+      <form method="post" action="/admin/setup" novalidate>
+        <div class="field">
+          <label for="fullName">Full Name <span class="req">*</span></label>
+          <input class="input <%= errors && errors.fullName ? 'invalid' : '' %>" type="text"
+                 id="fullName" name="fullName" value="<%= form.fullName || '' %>"
+                 placeholder="Admin Name">
+          <% if (errors && errors.fullName) { %>
+            <span class="field-error"><%= errors.fullName[0] %></span>
+          <% } %>
+        </div>
+
+        <div class="field">
+          <label for="email">Admin Email <span class="req">*</span></label>
+          <input class="input <%= errors && errors.email ? 'invalid' : '' %>" type="email"
+                 id="email" name="email" value="<%= form.email || '' %>"
+                 placeholder="admin@example.com">
+          <% if (errors && errors.email) { %>
+            <span class="field-error"><%= errors.email[0] %></span>
+          <% } %>
+        </div>
+
+        <div class="field">
+          <label for="phone">Phone <span class="req">*</span></label>
+          <input class="input <%= errors && errors.phone ? 'invalid' : '' %>" type="tel"
+                 id="phone" name="phone" value="<%= form.phone || '' %>"
+                 placeholder="+254712345678">
+          <% if (errors && errors.phone) { %>
+            <span class="field-error"><%= errors.phone[0] %></span>
+          <% } %>
+        </div>
+
+        <div class="field">
+          <label for="password">Password <span class="req">*</span></label>
+          <input class="input <%= errors && errors.password ? 'invalid' : '' %>" type="password"
+                 id="password" name="password" placeholder="Minimum 6 characters">
+          <% if (errors && errors.password) { %>
+            <span class="field-error"><%= errors.password[0] %></span>
+          <% } %>
+        </div>
+
+        <div class="field">
+          <label for="confirmPassword">Confirm Password <span class="req">*</span></label>
+          <input class="input <%= errors && errors.confirmPassword ? 'invalid' : '' %>" type="password"
+                 id="confirmPassword" name="confirmPassword" placeholder="Re-enter your password">
+          <% if (errors && errors.confirmPassword) { %>
+            <span class="field-error"><%= errors.confirmPassword[0] %></span>
+          <% } %>
+        </div>
+
+        <button class="btn btn-primary btn-block" type="submit">Create Admin Account</button>
+      </form>
+
+      <p class="form-hint pt-12 center">
+        Already set up?
+        <a href="/login">Back to Login</a>
+      </p>
+    </div>
+  </section>
+</div>
+
+<%- include('partials/footer') %>

@@ -95,6 +95,7 @@ app.use('/', require('./routes/buyer'));
 app.use('/', require('./routes/cart'));
 app.use('/', require('./routes/products'));
 app.use('/', require('./routes/orders'));
+app.use('/', require('./routes/admin-setup'));
 app.use('/', require('./routes/admin'));
 
 // Health check for the hosting platform / uptime monitors.

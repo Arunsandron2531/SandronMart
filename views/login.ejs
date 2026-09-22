@@ -70,22 +70,30 @@
       </div>
 
       <div class="auth-panel" id="panel-admin" style="<%= openForm === 'admin' ? '' : 'display:none' %>">
-        <form method="post" action="/login" novalidate>
-          <div class="field">
-            <label for="adminEmail">Admin Email <span class="req">*</span></label>
-            <input class="input" type="email"
-                   id="adminEmail" name="email" value="admin@sandronmart.com"
-                   placeholder="admin@sandronmart.com">
-          </div>
+        <% if (adminConfigured) { %>
+          <form method="post" action="/login" novalidate>
+            <div class="field">
+              <label for="adminEmail">Admin Email <span class="req">*</span></label>
+              <input class="input" type="email"
+                     id="adminEmail" name="email" value="<%= form.email || '' %>"
+                     placeholder="admin@example.com">
+            </div>
 
-          <div class="field">
-            <label for="adminPassword">Password <span class="req">*</span></label>
-            <input class="input" type="password"
-                   id="adminPassword" name="password" placeholder="Enter your password">
-          </div>
+            <div class="field">
+              <label for="adminPassword">Password <span class="req">*</span></label>
+              <input class="input" type="password"
+                     id="adminPassword" name="password" placeholder="Enter your password">
+            </div>
 
-          <button class="btn btn-primary btn-block" type="submit">Admin Login</button>
-        </form>
+            <button class="btn btn-primary btn-block" type="submit">Admin Login</button>
+          </form>
+        <% } else { %>
+          <div class="setup-note">
+            <p><strong>No admin account has been set up yet.</strong></p>
+            <p>Set the email and password for the store administrator to enable Admin Login.</p>
+            <a class="btn btn-primary btn-block" href="/admin/setup">Set Up Admin Account</a>
+          </div>
+        <% } %>
 
         <p class="form-hint center">
           <a href="/">&larr; Back to Home</a>

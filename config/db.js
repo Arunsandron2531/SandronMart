@@ -171,8 +171,6 @@ if (process.env.NODE_ENV !== 'test') {
   require('./seed')(db);
 }
 
-require('./admin-seed').ensureAdminUser(db);
-
 db.pragma('wal_checkpoint(TRUNCATE)');
 
 module.exports = db;

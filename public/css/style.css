@@ -404,6 +404,24 @@ a:hover {
   color: var(--green-800);
 }
 
+.auth-panel .setup-note {
+  background: var(--green-100);
+  border: 1px solid var(--green-600);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  color: var(--green-800);
+  font-size: 0.9rem;
+  margin-bottom: 18px;
+}
+
+.auth-panel .setup-note p {
+  margin: 0 0 8px;
+}
+
+.auth-panel .setup-note .btn {
+  margin-top: 8px;
+}
+
 /* ---------- Forms ---------- */
 
 .field {

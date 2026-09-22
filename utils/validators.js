@@ -90,6 +90,43 @@ function validateRegister(body) {
   return errors;
 }
 
+function validateAdminSetup(body) {
+  const errors = {};
+  const { fullName, email, phone, password, confirmPassword } = body;
+
+  if (!fullName || !fullName.trim()) {
+    addError(errors, 'fullName', 'Full name is required');
+  } else if (fullName.trim().length < 3) {
+    addError(errors, 'fullName', 'Full name must be at least 3 characters');
+  }
+
+  if (!email || !email.trim()) {
+    addError(errors, 'email', 'Email is required');
+  } else if (!validateEmail(email)) {
+    addError(errors, 'email', 'Please enter a valid email address');
+  }
+
+  if (!phone || !phone.trim()) {
+    addError(errors, 'phone', 'Phone number is required');
+  } else if (!PHONE_PATTERN.test(phone.trim())) {
+    addError(errors, 'phone', 'Please enter a valid phone number');
+  }
+
+  if (!password) {
+    addError(errors, 'password', 'Password is required');
+  } else if (password.length < 6) {
+    addError(errors, 'password', 'Password must be at least 6 characters');
+  }
+
+  if (!confirmPassword) {
+    addError(errors, 'confirmPassword', 'Please confirm your password');
+  } else if (password && password !== confirmPassword) {
+    addError(errors, 'confirmPassword', 'Passwords do not match');
+  }
+
+  return errors;
+}
+
 function validateIndianMobile(phone) {
   return typeof phone === 'string' && INDIAN_MOBILE_PATTERN.test(phone.trim());
 }
@@ -202,6 +239,7 @@ function validateProduct(body) {
 module.exports = {
   validateLogin,
   validateRegister,
+  validateAdminSetup,
   validateProduct,
   validateAddress,
   validateIndianMobile,
