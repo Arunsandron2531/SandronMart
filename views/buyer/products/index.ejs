@@ -8,6 +8,13 @@
     </div>
   </div>
 
+  <% if (messages.success) { %>
+    <div class="alert alert-success"><%= messages.success %></div>
+  <% } %>
+  <% if (messages.error) { %>
+    <div class="alert alert-error"><%= messages.error %></div>
+  <% } %>
+
   <form class="filter-bar" method="get" action="/buyer/products">
     <input class="input" type="search" name="search" placeholder="Search by name, description, or category..."
            value="<%= search %>" aria-label="Search products">
@@ -33,6 +40,14 @@
     <div class="product-grid">
       <% products.forEach(function (product) { %>
         <div class="product-card">
+          <form class="wishlist-form" method="post" action="/buyer/wishlist/toggle">
+            <input type="hidden" name="product_id" value="<%= product.id %>">
+            <input type="hidden" name="redirect" value="/buyer/products">
+            <button type="submit"
+                    class="heart-btn <%= wishlistIds.has(product.id) ? 'active' : '' %>"
+                    aria-label="<%= wishlistIds.has(product.id) ? 'Remove from wishlist' : 'Add to wishlist' %>"
+                    title="<%= wishlistIds.has(product.id) ? 'Remove from wishlist' : 'Add to wishlist' %>">&#9829;</button>
+          </form>
           <img class="product-thumb" src="<%= productImage(product) %>" alt="<%= product.name %>"
                loading="lazy" data-default-image="<%= defaultProductImage(product) %>">
           <div class="product-thumb product-thumb-fallback image-fallback" style="display:none;"></div>

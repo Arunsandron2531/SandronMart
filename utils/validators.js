@@ -127,6 +127,29 @@ function validateAdminSetup(body) {
   return errors;
 }
 
+function validateReview(body) {
+  const errors = {};
+  const productId = typeof body.product_id === 'string' ? body.product_id.trim() : '';
+  const rating = typeof body.rating === 'string' ? body.rating.trim() : '';
+  const comment = typeof body.comment === 'string' ? body.comment.trim() : '';
+
+  if (!productId || !/^\d+$/.test(productId)) {
+    addError(errors, 'review', 'Invalid product');
+  }
+
+  if (!rating || !/^[1-5]$/.test(rating)) {
+    addError(errors, 'rating', 'Please select a rating from 1 to 5 stars');
+  }
+
+  if (!comment) {
+    addError(errors, 'comment', 'Please write a short review');
+  } else if (comment.length > REVIEW_MAX_LENGTH) {
+    addError(errors, 'comment', `Review must be ${REVIEW_MAX_LENGTH} characters or fewer`);
+  }
+
+  return errors;
+}
+
 function validateIndianMobile(phone) {
   return typeof phone === 'string' && INDIAN_MOBILE_PATTERN.test(phone.trim());
 }
@@ -134,6 +157,8 @@ function validateIndianMobile(phone) {
 function validatePincode(pincode) {
   return typeof pincode === 'string' && PINCODE_PATTERN.test(pincode.trim());
 }
+
+const REVIEW_MAX_LENGTH = 500;
 
 function single(value) {
   return Array.isArray(value) ? (value[0] || '') : (value || '');
@@ -240,10 +265,12 @@ module.exports = {
   validateLogin,
   validateRegister,
   validateAdminSetup,
+  validateReview,
   validateProduct,
   validateAddress,
   validateIndianMobile,
   validatePincode,
+  REVIEW_MAX_LENGTH,
   PRODUCT_CATEGORIES,
   INDIA_STATES,
 };

@@ -144,4 +144,62 @@
       });
     }
   };
+/* ---------- Reviews ---------- */
+
+  var REVIEW_MAX_LENGTH = 500;
+
+  global.ReviewValidation = {
+    init: function () {
+      var forms = document.querySelectorAll('form.js-review-form');
+      forms.forEach(function (form) {
+        var ratingInputs = form.querySelectorAll('input[name="rating"]');
+        var comment = form.querySelector('textarea[name="comment"]');
+        if (!ratingInputs.length || !comment) {
+          return;
+        }
+
+        var ratingError = form.querySelector('#reviewRatingError');
+        var commentError = form.querySelector('#reviewCommentError');
+
+        function selectedRating() {
+          for (var i = 0; i < ratingInputs.length; i++) {
+            if (ratingInputs[i].checked) {
+              return ratingInputs[i].value;
+            }
+          }
+          return null;
+        }
+
+        form.addEventListener('submit', function (e) {
+          var valid = true;
+
+          if (ratingError) {
+            if (!selectedRating()) {
+              ratingError.textContent = 'Please select a star rating';
+              valid = false;
+            } else {
+              ratingError.textContent = '';
+            }
+          }
+
+          if (commentError) {
+            if (!comment.value || comment.value.trim() === '') {
+              commentError.textContent = 'Please write a short review';
+              valid = false;
+            } else if (comment.value.trim().length > REVIEW_MAX_LENGTH) {
+              commentError.textContent =
+                'Review must be ' + REVIEW_MAX_LENGTH + ' characters or fewer';
+              valid = false;
+            } else {
+              commentError.textContent = '';
+            }
+          }
+
+          if (!valid) {
+            e.preventDefault();
+          }
+        });
+      });
+    }
+  };
 })(window);

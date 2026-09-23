@@ -119,6 +119,16 @@ function extractOrderId(redirectOrHtml) {
   return match ? Number(match[1]) : null;
 }
 
+function extractWishlistRowId(html) {
+  const match = (html || '').match(/\/buyer\/wishlist\/(\d+)\/remove/);
+  return match ? Number(match[1]) : null;
+}
+
+function extractReviewId(html) {
+  const match = (html || '').match(/\/buyer\/reviews\/(\d+)\/update/);
+  return match ? Number(match[1]) : null;
+}
+
 async function run() {
   server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
@@ -699,6 +709,162 @@ async function run() {
   r = await buyer.request('GET', `/buyer/products/${idTomatoPlant}`);
   assert(r.status === 200 && r.text.includes('src="/assets/images/products/tomato.jpg"'), 'no-image product detail shows its product-specific default immediately', `status=${r.status}`);
   assert(r.text.includes('data-default-image="/assets/images/products/tomato.jpg"'), 'no-image product detail has fallback wired');
+
+  /* ===== Buyer Wishlist ===== */
+
+  r = await anon.request('GET', '/buyer/wishlist');
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'anonymous wishlist page redirects to login', `status=${r.status}`);
+  r = await anon.request('POST', '/buyer/wishlist/toggle', { product_id: '1', redirect: '/buyer/products' });
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'anonymous wishlist toggle redirects to login', `status=${r.status}`);
+  r = await anon.request('POST', '/buyer/wishlist/1/remove', {});
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'anonymous wishlist remove redirects to login', `status=${r.status}`);
+
+  r = await seller.request('GET', '/buyer/wishlist');
+  assert(r.status === 403 && r.text.includes('403'), 'seller blocked from wishlist page (403)', `status=${r.status}`);
+  r = await seller.request('POST', '/buyer/wishlist/toggle', { product_id: String(idMonstera), redirect: '/buyer/products' });
+  assert(r.status === 403 && r.text.includes('403'), 'seller blocked from wishlist toggle (403)', `status=${r.status}`);
+  r = await seller.request('POST', '/buyer/wishlist/1/remove', {});
+  assert(r.status === 403 && r.text.includes('403'), 'seller blocked from wishlist remove (403)', `status=${r.status}`);
+  r = await seller.request('GET', '/seller/dashboard');
+  assert(!r.text.toLowerCase().includes('wishlist'), 'seller header hides the wishlist link');
+
+  r = await buyer.request('GET', '/buyer/wishlist');
+  assert(r.status === 200 && r.text.includes('My Wishlist'), 'buyer wishlist page renders', `status=${r.status}`);
+  assert(r.text.includes('Your wishlist is empty'), 'empty wishlist shows empty state');
+  assert(r.text.includes('href="/buyer/wishlist"'), 'buyer header shows Wishlist navigation link');
+
+  r = await buyer.request('POST', '/buyer/wishlist/toggle', { product_id: String(idMonstera), redirect: '/buyer/products' });
+  assert(r.status === 302 && r.location === `/buyer/products?added=1`, 'toggling a product onto the wishlist redirects with added flag', `status=${r.status} loc=${r.location}`);
+  let row = appDb.prepare('SELECT COUNT(*) AS c FROM wishlist_items WHERE buyer_id = (SELECT id FROM users WHERE email = ?) AND product_id = ?').get('jane@example.com', idMonstera);
+  assert(row.c === 1, 'wishlist toggle creates exactly one row', `count=${row.c}`);
+
+  r = await buyer.request('GET', '/buyer/products');
+  assert(r.text.includes('heart-btn active'), 'saved product card shows an active (filled) heart');
+  assert(r.text.includes('action="/buyer/wishlist/toggle"'), 'product card includes the wishlist toggle form');
+
+  r = await buyer.request('GET', '/buyer/products?search=rose');
+  assert(!r.text.includes('heart-btn active'), 'unsaved products show an empty heart');
+
+  r = await buyer.request('POST', '/buyer/wishlist/toggle', { product_id: String(idMonstera), redirect: '/buyer/products' });
+  assert(r.status === 302 && r.location === `/buyer/products?removed=1`, 'toggling an existing item removes it (removed flag)', `loc=${r.location}`);
+  row = appDb.prepare('SELECT COUNT(*) AS c FROM wishlist_items WHERE buyer_id = (SELECT id FROM users WHERE email = ?) AND product_id = ?').get('jane@example.com', idMonstera);
+  assert(row.c === 0, 'duplicate wishlist toggle removes the row', `count=${row.c}`);
+
+  r = await buyer.request('POST', '/buyer/wishlist/toggle', { product_id: String(idTomatoPlant), redirect: '/buyer/products' });
+  assert(r.status === 302 && r.location === `/buyer/products?added=1`, 'no-image product can be wishlisted', `loc=${r.location}`);
+
+  r = await buyer.request('GET', '/buyer/wishlist');
+  assert(r.status === 200 && r.text.includes('Tomato Plant'), 'wishlist lists the saved product', `status=${r.status}`);
+  assert(r.text.includes('src="/assets/images/products/tomato.jpg"'), 'wishlist shows the product-specific default image');
+  assert(r.text.includes('Remove'), 'wishlist row offers a Remove action');
+  const wishlistRowId = extractWishlistRowId(r.text);
+  assert(wishlistRowId !== null, 'wishlist remove target extracted', `id=${wishlistRowId}`);
+
+  r = await buyer.request('POST', `/buyer/wishlist/${wishlistRowId}/remove`, {});
+  assert(r.status === 302 && r.location === '/buyer/wishlist?removed=1', 'removing from wishlist redirects back with removed flag', `status=${r.status} loc=${r.location}`);
+  row = appDb.prepare('SELECT COUNT(*) AS c FROM wishlist_items WHERE buyer_id = (SELECT id FROM users WHERE email = ?) AND product_id = ?').get('jane@example.com', idTomatoPlant);
+  assert(row.c === 0, 'wishlist remove deletes the row', `count=${row.c}`);
+
+  r = await buyer.request('GET', '/buyer/wishlist');
+  assert(r.text.includes('Your wishlist is empty'), 'wishlist returns to empty state after removal');
+
+  r = await buyer.request('POST', '/buyer/wishlist/toggle', { product_id: 'not-a-number', redirect: '/buyer/products' });
+  assert(r.status === 302 && r.location === '/buyer/products?invalid=1', 'invalid wishlist product id rejected', `loc=${r.location}`);
+  r = await buyer.request('POST', '/buyer/wishlist/toggle', { product_id: '999999', redirect: '/buyer/products' });
+  assert(r.status === 302 && r.location === '/buyer/products?notfound=1', 'wishlist toggle for missing product rejected', `loc=${r.location}`);
+  r = await buyer.request('POST', '/buyer/wishlist/toggle', { product_id: String(idMonstera), redirect: 'https://evil.example.com' });
+  assert(r.status === 302 && r.location === '/buyer/products?added=1', 'wishlist toggle only redirects to buyer routes (open-redirect guard)', `loc=${r.location}`);
+  r = await buyer.request('POST', `/buyer/wishlist/${idMonstera}/remove`, {});
+  assert(r.status === 302 && r.location === '/buyer/wishlist?invalid=1', 'removing a non-wishlist id is rejected', `loc=${r.location}`);
+
+  /* ===== Product Reviews & Ratings ===== */
+
+  r = await anon.request('POST', '/buyer/reviews', { product_id: String(idMonstera), rating: '5', comment: 'Lovely!' });
+  assert(r.status === 302 && (r.location || '').includes('/login'), 'anonymous review post redirects to login', `status=${r.status}`);
+  r = await seller.request('POST', '/buyer/reviews', { product_id: String(idMonstera), rating: '5', comment: 'Lovely!' });
+  assert(r.status === 403 && r.text.includes('403'), 'seller blocked from posting reviews (403)', `status=${r.status}`);
+
+  r = await buyer.request('GET', `/buyer/products/${idMonstera}`);
+  assert(r.text.includes('Reviews &amp; Ratings'), 'detail page shows the reviews section');
+  assert(r.text.includes('No reviews yet'), 'detail page shows no-reviews state before first review');
+
+  r = await buyer.request('POST', '/buyer/reviews', { product_id: String(idMonstera), comment: 'Missing a star rating.' });
+  assert(r.status === 302 && r.location === `/buyer/products/${idMonstera}#reviews`, 'review without rating redirects back to detail', `loc=${r.location}`);
+  r = await buyer.request('GET', `/buyer/products/${idMonstera}`);
+  assert(r.text.includes('Please select a rating from 1 to 5 stars'), 'missing rating shows server-side error on detail');
+  assert(r.text.includes('Missing a star rating.'), 'failed review comment is prefilled for the buyer');
+
+  r = await buyer.request('POST', '/buyer/reviews', { product_id: String(idMonstera), rating: '5', comment: 'Absolutely gorgeous!' });
+  assert(r.status === 302 && r.location === `/buyer/products/${idMonstera}#reviews`, 'valid review redirects back to the reviews anchor', `loc=${r.location}`);
+
+  r = await buyer.request('GET', `/buyer/products/${idMonstera}`);
+  assert(r.text.includes('Your review has been posted.'), 'review success message shown');
+  assert(r.text.includes('Absolutely gorgeous!'), 'review comment appears on detail');
+  assert(r.text.includes('Jane Buyer'), 'review shows the reviewer name');
+  assert(r.text.includes('1 review'), 'review count shows one');
+  assert(r.text.includes('<strong>5</strong> out of 5'), 'average rating displays the 5 star value', 'avg render');
+  assert(r.text.includes('Edit your review'), 'own review shows an edit form');
+
+  let reviewRow = appDb.prepare('SELECT * FROM product_reviews WHERE product_id = ? AND user_id = (SELECT id FROM users WHERE email = ?)').get(idMonstera, 'jane@example.com');
+  assert(reviewRow !== undefined && reviewRow.rating === 5, 'one review row stored with rating 5', `rating=${reviewRow && reviewRow.rating}`);
+
+  r = await buyer.request('POST', '/buyer/reviews', { product_id: String(idMonstera), rating: '4', comment: 'Still great, one small scratch.' });
+  assert(r.status === 302 && r.location === `/buyer/products/${idMonstera}#reviews`, 'voting again reuses the same review (upsert)', `loc=${r.location}`);
+  reviewRow = appDb.prepare('SELECT COUNT(*) AS c FROM product_reviews WHERE product_id = ? AND user_id = (SELECT id FROM users WHERE email = ?)').get(idMonstera, 'jane@example.com');
+  assert(reviewRow.c === 1, 'upsert keeps a single review per buyer per product', `count=${reviewRow.c}`);
+
+  r = await buyer.request('GET', `/buyer/products/${idMonstera}`);
+  assert(r.text.includes('Your review has been updated.') && r.text.includes('Still great, one small scratch.'), 'upsert updates the existing review in place');
+
+  const reviewId = extractReviewId(r.text);
+  assert(reviewId !== null, 'own review edit target extracted', `id=${reviewId}`);
+
+  r = await buyer.request('POST', `/buyer/reviews/${reviewId}/update`, { rating: '3', comment: 'Three stars and honest feedback.' });
+  assert(r.status === 302 && r.location === `/buyer/products/${idMonstera}#reviews`, 'edit form updates the own review', `loc=${r.location}`);
+  reviewRow = appDb.prepare('SELECT rating, comment FROM product_reviews WHERE id = ?').get(reviewId);
+  assert(reviewRow !== undefined && reviewRow.rating === 3 && reviewRow.comment === 'Three stars and honest feedback.', 'review update persisted rating and comment', JSON.stringify(reviewRow));
+
+  const buyer2 = makeClient();
+  r = await buyer2.request('POST', '/register', {
+    fullName: 'Betty Buyer', email: 'betty@example.com', phone: '+254712345690',
+    password: 'secret123', confirmPassword: 'secret123', role: 'BUYER'
+  });
+  assert(r.status === 302 && (r.location || '').includes('registered=1'), 'second buyer registered', `status=${r.status}`);
+  r = await buyer2.request('POST', '/login', { email: 'betty@example.com', password: 'secret123' });
+  assert(r.status === 302 && r.location === '/buyer/dashboard', 'second buyer logs in', `loc=${r.location}`);
+
+  r = await buyer2.request('POST', `/buyer/reviews/${reviewId}/update`, { rating: '5', comment: 'Hijack attempt.' });
+  assert(r.status === 302 && r.location === '/buyer/products', 'a buyer cannot edit another buyer\'s review', `loc=${r.location}`);
+  r = await buyer2.request('POST', `/buyer/reviews/${reviewId}/delete`, {});
+  assert(r.status === 302 && r.location === '/buyer/products', 'a buyer cannot delete another buyer\'s review', `loc=${r.location}`);
+  reviewRow = appDb.prepare('SELECT rating, comment FROM product_reviews WHERE id = ?').get(reviewId);
+  assert(reviewRow.rating === 3 && reviewRow.comment === 'Three stars and honest feedback.', 'other-user review guard left the row untouched', JSON.stringify(reviewRow));
+
+  r = await buyer2.request('POST', '/buyer/reviews', { product_id: String(idMonstera), rating: '5', comment: 'Betty loves this plant!' });
+  assert(r.status === 302 && r.location === `/buyer/products/${idMonstera}#reviews`, 'a second buyer can add their own review', `loc=${r.location}`);
+  r = await buyer2.request('GET', `/buyer/products/${idMonstera}`);
+  assert(r.text.includes('Betty Buyer') && r.text.includes('Jane Buyer'), 'both reviewers appear on the detail page');
+  assert(r.text.includes('2 reviews'), 'review count reflects both reviewers');
+  assert(r.text.includes('<strong>4</strong> out of 5'), 'average rating blends both reviews (4)', 'avg render');
+
+  r = await buyer2.request('POST', '/buyer/reviews', { product_id: String(idMonstera), rating: '0', comment: 'Zero rating.' });
+  assert(r.status === 302 && (r.location || '').includes('#reviews'), 'invalid rating value rejected', `loc=${r.location}`);
+  r = await buyer2.request('GET', `/buyer/products/${idMonstera}`);
+  assert(r.text.includes('Please select a rating from 1 to 5 stars'), 'invalid rating shows server-side error on detail');
+
+  r = await buyer2.request('POST', '/buyer/reviews', { product_id: String(idMonstera), rating: '5', comment: '' });
+  assert(r.status === 302 && (r.location || '').includes('#reviews'), 'empty review comment rejected', `loc=${r.location}`);
+  r = await buyer2.request('GET', `/buyer/products/${idMonstera}`);
+  assert(r.text.includes('Please write a short review'), 'empty comment shows server-side error on detail');
+
+  r = await buyer.request('POST', `/buyer/reviews/${reviewId}/delete`, {});
+  assert(r.status === 302 && r.location === `/buyer/products/${idMonstera}#reviews`, 'owner can delete their own review', `loc=${r.location}`);
+  r = await buyer.request('GET', `/buyer/products/${idMonstera}`);
+  assert(r.text.includes('Your review has been deleted.') && !r.text.includes('Three stars and honest feedback.'), 'deleted review is gone and success message shown');
+  assert(r.text.includes('Betty loves this plant!') && r.text.includes('1 review'), 'other reviewer review and count remain after deletion');
+
+  r = await buyer.request('POST', '/buyer/reviews/' + (reviewId + 1000) + '/delete', {});
+  assert(r.status === 302 && r.location === '/buyer/products', 'deleting a non-existent review is safe', `loc=${r.location}`);
 
   r = await buyer.request('GET', '/buyer/account');
   assert(r.status === 200 && r.text.includes('My Account'), 'buyer account page renders', `status=${r.status}`);

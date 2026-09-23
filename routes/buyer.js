@@ -51,12 +51,26 @@ router.get('/buyer/products', (req, res) => {
 
   const products = listActiveProducts({ search, category });
 
+  const wishlistIds = new Set(
+    db.prepare('SELECT product_id FROM wishlist_items WHERE buyer_id = ?')
+      .all(req.session.userId)
+      .map((row) => row.product_id)
+  );
+
+  const messages = {};
+  if (req.query.added) messages.success = 'Added to your wishlist.';
+  if (req.query.removed) messages.success = 'Removed from your wishlist.';
+  if (req.query.notfound) messages.error = 'That product is no longer available.';
+  if (req.query.invalid) messages.error = 'Invalid wishlist item.';
+
   res.render('buyer/products/index', {
     title: 'Browse Products',
     products,
     categories: PRODUCT_CATEGORIES,
     search,
     selectedCategory: PRODUCT_CATEGORIES.includes(category) ? category : '',
+    wishlistIds,
+    messages,
   });
 });
 
@@ -78,9 +92,41 @@ router.get('/buyer/products/:id', (req, res) => {
     return res.status(404).render('404', { title: 'Not Found' });
   }
 
+  const wishlistIds = new Set(
+    db.prepare('SELECT product_id FROM wishlist_items WHERE buyer_id = ?')
+      .all(req.session.userId)
+      .map((row) => row.product_id)
+  );
+
+  const reviewStats = db.prepare(
+    'SELECT COUNT(*) AS count, AVG(rating) AS avgRating FROM product_reviews WHERE product_id = ?'
+  ).get(id);
+  const reviews = db.prepare(
+    `SELECT r.id, r.rating, r.comment, r.created_at,
+            u.full_name AS reviewer_name
+     FROM product_reviews r
+     JOIN users u ON u.id = r.user_id
+     WHERE r.product_id = ?
+     ORDER BY r.updated_at DESC, r.id DESC`
+  ).all(id);
+  const myReview = db.prepare(
+    'SELECT id, rating, comment FROM product_reviews WHERE product_id = ? AND user_id = ?'
+  ).get(id, req.session.userId);
+
+  const reviewFlash = req.session.reviewFlash || null;
+  delete req.session.reviewFlash;
+
   res.render('buyer/products/detail', {
     title: product.name,
     product,
+    wishlistIds,
+    reviewStats: {
+      count: reviewStats.count,
+      avgRating: reviewStats.count > 0 ? Math.round(reviewStats.avgRating * 10) / 10 : null,
+    },
+    reviews,
+    myReview,
+    reviewFlash,
   });
 });
 

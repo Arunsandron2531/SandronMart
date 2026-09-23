@@ -88,6 +88,33 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS wishlist_items (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    buyer_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (buyer_id, product_id)
+  );
+`);
+
+db.exec('CREATE INDEX IF NOT EXISTS idx_wishlist_buyer_id ON wishlist_items(buyer_id);');
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS product_reviews (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    rating     INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment    TEXT    NOT NULL CHECK (length(comment) BETWEEN 1 AND 500),
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (product_id, user_id)
+  );
+`);
+
+db.exec('CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON product_reviews(product_id);');
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS addresses (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     buyer_id     INTEGER NOT NULL REFERENCES users(id),

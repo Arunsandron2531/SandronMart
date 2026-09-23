@@ -1,0 +1,51 @@
+<%- include('../partials/header', { title: 'My Wishlist' }) %>
+
+<div class="container">
+  <div class="page-head">
+    <div>
+      <h1>My Wishlist</h1>
+      <p class="muted">Products you have saved for later.</p>
+    </div>
+  </div>
+
+  <% if (messages.success) { %>
+    <div class="alert alert-success"><%= messages.success %></div>
+  <% } %>
+  <% if (messages.error) { %>
+    <div class="alert alert-error"><%= messages.error %></div>
+  <% } %>
+
+  <% if (items.length === 0) { %>
+    <div class="empty-state">
+      <div class="empty-icon">🤍</div>
+      <h3>Your wishlist is empty</h3>
+      <p>Tap the heart on any product to save it here for later.</p>
+      <a class="btn btn-primary" href="/buyer/products">Browse Products</a>
+    </div>
+  <% } else { %>
+    <div class="wishlist-grid">
+      <% items.forEach(function (item) { %>
+        <div class="wishlist-card">
+          <a class="wishlist-thumb" href="/buyer/products/<%= item.product_id %>">
+            <img class="wishlist-image" src="<%= productImage(item) %>" alt="<%= item.name %>"
+                 loading="lazy" data-default-image="<%= defaultProductImage(item) %>">
+            <div class="wishlist-image wishlist-image-fallback image-fallback" style="display:none;"></div>
+          </a>
+          <div class="wishlist-body">
+            <span class="product-category"><%= item.category %></span>
+            <h3 class="product-name"><%= item.name %></h3>
+            <div class="product-price"><%= formatINR(item.price) %></div>
+            <div class="wishlist-actions">
+              <a class="btn btn-primary btn-sm" href="/buyer/products/<%= item.product_id %>">View Details</a>
+              <form method="post" action="/buyer/wishlist/<%= item.wishlist_id %>/remove">
+                <button class="btn btn-danger-outline btn-sm" type="submit">Remove</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/footer') %>

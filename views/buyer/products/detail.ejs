@@ -15,10 +15,35 @@
       <span class="stock-chip <%= product.stock === 0 ? 'stock-out' : 'stock-in' %>">
         <%= product.stock === 0 ? 'Out of stock' : product.stock + ' in stock' %>
       </span>
+
+      <% if (reviewStats.count > 0) { %>
+        <a class="detail-rating" href="#reviews">
+          <span class="stars stars-sm">
+            <% for (let i = 1; i <= 5; i++) { %>
+              <span class="star <%= i <= Math.round(reviewStats.avgRating || 0) ? 'filled' : '' %>">&#9733;</span>
+            <% } %>
+          </span>
+          <span class="detail-rating-text"><%= reviewStats.avgRating %> (<%= reviewStats.count %>)</span>
+        </a>
+      <% } %>
+
       <p class="detail-desc"><%= product.description %></p>
       <% if (product.seller_name) { %>
         <p class="detail-seller">Sold by <strong><%= product.seller_name %></strong></p>
       <% } %>
+
+      <form class="wishlist-form wishlist-form-detail" method="post" action="/buyer/wishlist/toggle">
+        <input type="hidden" name="product_id" value="<%= product.id %>">
+        <input type="hidden" name="redirect" value="/buyer/products/<%= product.id %>">
+        <button type="submit"
+                class="heart-btn <%= wishlistIds.has(product.id) ? 'active' : '' %>"
+                aria-label="<%= wishlistIds.has(product.id) ? 'Remove from wishlist' : 'Add to wishlist' %>"
+                title="<%= wishlistIds.has(product.id) ? 'Remove from wishlist' : 'Add to wishlist' %>">&#9829;</button>
+        <span class="wishlist-label">
+          <%= wishlistIds.has(product.id) ? 'In your wishlist' : 'Add to wishlist' %>
+        </span>
+      </form>
+
       <% if (product.stock === 0) { %>
         <p class="detail-out">Out of stock. This product is currently unavailable.</p>
       <% } else { %>
@@ -39,6 +64,111 @@
       <p class="form-hint">Delivery estimate: <%= formatDayMonth(windowEstimate.start) %> &ndash; <%= formatDayMonth(windowEstimate.end) %>. <a href="/buyer/cart">View cart</a></p>
     </div>
   </div>
+
+  <section class="reviews-section" id="reviews">
+    <div class="reviews-head">
+      <h2>Reviews &amp; Ratings</h2>
+      <% if (reviewStats.count > 0) { %>
+        <div class="reviews-summary">
+          <span class="stars">
+            <% for (let i = 1; i <= 5; i++) { %>
+              <span class="star <%= i <= Math.round(reviewStats.avgRating || 0) ? 'filled' : '' %>">&#9733;</span>
+            <% } %>
+          </span>
+          <span class="reviews-avg"><strong><%= reviewStats.avgRating %></strong> out of 5</span>
+          <span class="reviews-count"><%= reviewStats.count %> review<%= reviewStats.count === 1 ? '' : 's' %></span>
+        </div>
+      <% } else { %>
+        <p class="muted">No reviews yet. Be the first to review this product.</p>
+      <% } %>
+    </div>
+
+    <% if (reviewFlash && reviewFlash.success) { %>
+      <div class="alert alert-success"><%= reviewFlash.success %></div>
+    <% } %>
+    <% if (reviewFlash && reviewFlash.error) { %>
+      <div class="alert alert-error"><%= reviewFlash.error %></div>
+    <% } %>
+
+    <div class="reviews-body">
+      <div class="review-form-card">
+        <% if (myReview) { %>
+          <h3>Edit your review</h3>
+          <form class="js-review-form" method="post" action="/buyer/reviews/<%= myReview.id %>/update">
+            <input type="hidden" name="product_id" value="<%= product.id %>">
+            <div class="star-input">
+              <% for (let i = 5; i >= 1; i--) { %>
+                <input type="radio" id="edit-rating-<%= i %>" name="rating" value="<%= i %>"
+                       <%= (reviewFlash && reviewFlash.rating ? String(reviewFlash.rating) : String(myReview.rating)) === String(i) ? 'checked' : '' %>>
+                <label class="star-select" for="edit-rating-<%= i %>" title="<%= i %> star<%= i === 1 ? '' : 's' %>">&#9733;</label>
+              <% } %>
+            </div>
+            <span class="field-error review-field-error" id="reviewRatingError"></span>
+            <textarea class="input review-input" name="comment" rows="4"
+                      maxlength="500" id="reviewComment"
+                      placeholder="Share your experience with this product..."><%= (reviewFlash && reviewFlash.comment) || myReview.comment %></textarea>
+            <span class="field-error review-field-error" id="reviewCommentError"></span>
+            <div class="review-form-actions">
+              <button class="btn btn-primary btn-sm" type="submit">Update Review</button>
+            </div>
+          </form>
+          <form class="inline review-delete" method="post" action="/buyer/reviews/<%= myReview.id %>/delete">
+            <button class="btn btn-danger-outline btn-sm" type="submit">Delete</button>
+          </form>
+        <% } else { %>
+          <h3>Write a review</h3>
+          <form class="js-review-form" method="post" action="/buyer/reviews">
+            <input type="hidden" name="product_id" value="<%= product.id %>">
+            <div class="star-input">
+              <% for (let i = 5; i >= 1; i--) { %>
+                <input type="radio" id="rating-<%= i %>" name="rating" value="<%= i %>"
+                       <%= reviewFlash && String(reviewFlash.rating) === String(i) ? 'checked' : '' %>>
+                <label class="star-select" for="rating-<%= i %>" title="<%= i %> star<%= i === 1 ? '' : 's' %>">&#9733;</label>
+              <% } %>
+            </div>
+            <span class="field-error review-field-error" id="reviewRatingError"></span>
+            <textarea class="input review-input" name="comment" rows="4"
+                      maxlength="500" id="reviewComment"
+                      placeholder="Share your experience with this product..."><%= (reviewFlash && reviewFlash.comment) || '' %></textarea>
+            <span class="field-error review-field-error" id="reviewCommentError"></span>
+            <div class="review-form-actions">
+              <button class="btn btn-primary btn-sm" type="submit">Post Review</button>
+            </div>
+          </form>
+        <% } %>
+      </div>
+
+      <div class="reviews-list">
+        <% if (reviews.length === 0) { %>
+          <div class="empty-state compact">
+            <div class="empty-icon">⭐</div>
+            <h3>No reviews yet</h3>
+          </div>
+        <% } else { %>
+          <% reviews.forEach(function (review) { %>
+            <div class="review-item">
+              <div class="review-top">
+                <span class="review-author"><%= review.reviewer_name %></span>
+                <span class="review-date"><%= formatLongDate(review.created_at) %></span>
+              </div>
+              <div class="stars">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <span class="star <%= i <= review.rating ? 'filled' : '' %>">&#9733;</span>
+                <% } %>
+              </div>
+              <p class="review-text"><%= review.comment %></p>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+    </div>
+  </section>
 </div>
 
 <%- include('../../partials/footer') %>
+<script src="/js/validation.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    ReviewValidation.init();
+  });
+</script>

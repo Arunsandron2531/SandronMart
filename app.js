@@ -93,6 +93,8 @@ app.use('/', require('./routes/pages'));
 app.use('/', require('./routes/auth'));
 app.use('/', require('./routes/buyer'));
 app.use('/', require('./routes/cart'));
+app.use('/', require('./routes/wishlist'));
+app.use('/', require('./routes/reviews'));
 app.use('/', require('./routes/products'));
 app.use('/', require('./routes/orders'));
 app.use('/', require('./routes/admin-setup'));
