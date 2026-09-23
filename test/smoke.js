@@ -649,7 +649,7 @@ async function run() {
   assert((r.text.match(/data-default-image=/g) || []).length === cards.length, 'every product card image has a fallback wired', `imgs=${(r.text.match(/data-default-image=/g) || []).length} cards=${cards.length}`);
 
   const productImageFiles = fs.readdirSync(path.join(rootDir, 'public', 'assets', 'images', 'products')).filter((f) => f.endsWith('.jpg'));
-  assert(productImageFiles.length === 23, 'expected 23 local product photos', `files=${productImageFiles.length}`);
+  assert(productImageFiles.length === 38, 'expected 38 local product photos', `files=${productImageFiles.length}`);
   for (const file of productImageFiles) {
     r = await anon.request('GET', '/assets/images/products/' + file);
     assert(r.status === 200 && r.text.length > 1000, file + ' served locally as a static asset', 'status=' + r.status);
@@ -687,6 +687,62 @@ async function run() {
   assert(defaultProductImage({ name: 'Custom Pot with stand', category: 'Pots & Planters' }) === '/assets/images/products/plant-pot.jpg', 'category-only fallback still picks a real photo');
   assert(defaultProductImage('Pots & Planters') === '/assets/images/products/plant-pot.jpg', 'plain category string still resolves via category fallback');
   assert(defaultProductImage({ name: 'Mystery Widget', category: 'Mystery' }) === '/assets/images/products/default.jpg', 'fully unknown product uses the generic default');
+
+  /* ===== Automatic real-photo matching for new products (no generic defaults) ===== */
+  const nameMatchedCases = [
+    ['Banana Tree', 'Outdoor Plants', 'banana.jpg'],
+    ['Banana Plant sapling', 'Indoor Plants', 'banana.jpg'],
+    ['Mango Tree', 'Outdoor Plants', 'mango.jpg'],
+    ['Guava Plant', 'Outdoor Plants', 'guava.jpg'],
+    ['Papaya Tree', 'Outdoor Plants', 'papaya.jpg'],
+    ['Lemon Tree', 'Outdoor Plants', 'lemon.jpg'],
+    ['Coconut Tree', 'Outdoor Plants', 'coconut.jpg'],
+    ['Orange Tree', 'Outdoor Plants', 'orange.jpg'],
+    ['Green Chilli Plant', 'Herbs & Vegetables', 'chilli.jpg'],
+    ['Capsicum plant', 'Herbs & Vegetables', 'chilli.jpg'],
+    ['Mint Plant', 'Herbs & Vegetables', 'mint.jpg'],
+    ['Pudina', 'Herbs & Vegetables', 'mint.jpg'],
+    ['Coriander Plant', 'Herbs & Vegetables', 'coriander.jpg'],
+    ['Dhaniya Seeds', 'Seeds', 'coriander.jpg'],
+    ['Curry Leaves Plant', 'Outdoor Plants', 'curry.jpg'],
+    ['Kadi Patta Tree', 'Outdoor Plants', 'curry.jpg'],
+    ['Meetha Neem sapling', 'Outdoor Plants', 'curry.jpg'],
+    ['Hibiscus Plant', 'Flower Plants', 'hibiscus.jpg'],
+    ['Jasmine Plant', 'Flower Plants', 'jasmine.jpg'],
+    ['Mogra vine', 'Flower Plants', 'jasmine.jpg'],
+    ['Marigold Plant', 'Flower Plants', 'marigold.jpg'],
+  ];
+  const nameSeen = new Set();
+  for (const [name, category, expected] of nameMatchedCases) {
+    const img = defaultProductImage({ name, category });
+    assert(img === '/assets/images/products/' + expected, `"${name}" auto-matches its real photo (${expected})`, img);
+    assert(fs.existsSync(path.join(rootDir, 'public', img)), `photo file exists for "${name}"`, img);
+    nameSeen.add(img);
+  }
+  assert(!nameSeen.has('/assets/images/products/rose.jpg') && !nameSeen.has('/assets/images/products/default.jpg'), 'new auto-matched products never fall back to the rose or generic default');
+  assert(productImageFiles.includes('banana.jpg') && productImageFiles.includes('garden.jpg'), 'new local photos present on disk');
+  for (const file of ['banana.jpg', 'mango.jpg', 'guava.jpg', 'papaya.jpg', 'lemon.jpg', 'coconut.jpg', 'orange.jpg', 'chilli.jpg', 'mint.jpg', 'coriander.jpg', 'curry.jpg', 'hibiscus.jpg', 'jasmine.jpg', 'marigold.jpg', 'garden.jpg']) {
+    assert(fs.existsSync(path.join(rootDir, 'public', 'assets', 'images', 'products', file)), 'new photo on disk: ' + file);
+    r = await anon.request('GET', '/assets/images/products/' + file);
+    assert(r.status === 200 && r.text.length > 1000, file + ' served locally as a static asset', 'status=' + r.status);
+  }
+  assert(defaultProductImage({ name: 'Mystery Outdoor Plant', category: 'Outdoor Plants' }) === '/assets/images/products/garden.jpg', 'unmatched outdoor products get a garden photo, not the rose default');
+  assert(defaultProductImage({ name: 'Random Flower Sapling', category: 'Flower Plants' }) === '/assets/images/products/garden.jpg', 'unmatched flower products get a garden photo, not the rose default');
+
+  r = await seller.request('POST', '/seller/products', {
+    name: 'Banana Tree', description: 'A fruiting banana grown for its sweet fruit.', category: 'Outdoor Plants',
+    price: '29.99', stock: '3', imageUrl: ''
+  });
+  assert(r.status === 302 && (r.location || '').includes('created=1'), 'seller creates Banana Tree with no uploaded image', `status=${r.status} loc=${r.location}`);
+
+  r = await buyer.request('GET', '/buyer/products');
+  assert(r.status === 200 && r.text.includes('Banana Tree'), 'buyer browse shows the new Banana Tree product', `status=${r.status}`);
+  const bananaCard = r.text.split('class="product-card"').slice(1).find((c) => c.includes('Banana Tree'));
+  assert(bananaCard && bananaCard.includes('src="/assets/images/products/banana.jpg"'), 'Banana Tree card automatically shows the real banana photo', bananaCard ? 'missing banana.jpg src' : 'card not found');
+  assert(bananaCard && bananaCard.includes('data-default-image="/assets/images/products/banana.jpg"'), 'Banana Tree card wires the banana photo as fallback');
+
+  r = await seller.request('GET', '/seller/products');
+  assert(r.text.includes('Banana Tree') && r.text.includes('/assets/images/products/banana.jpg'), 'seller dashboard shows Banana Tree with the real banana photo');
 
   r = await buyer.request('GET', `/buyer/products/${idMonstera}`);
   assert(r.status === 200 && r.text.includes('Monstera Albo'), 'buyer opens product detail', `status=${r.status}`);
@@ -1354,7 +1410,7 @@ async function run() {
   const samId = db.prepare("SELECT id FROM users WHERE email = 'sam@example.com'").get().id;
   const ownProducts = db.prepare('SELECT COUNT(*) AS c FROM products WHERE seller_id = ?').get(samId);
   const allProducts = db.prepare('SELECT COUNT(*) AS c FROM products').get();
-  assert(ownProducts.c === 9 && allProducts.c === 9, 'products scoped to owner seller in DB', `own=${ownProducts.c} all=${allProducts.c}`);
+  assert(ownProducts.c === 10 && allProducts.c === 10, 'products scoped to owner seller in DB', `own=${ownProducts.c} all=${allProducts.c}`);
   const deletedRow = db.prepare('SELECT COUNT(*) AS c FROM products WHERE id = ?').get(idTomato);
   assert(deletedRow.c === 0, 'deleted product removed from DB', `count=${deletedRow.c}`);
   const orphanProducts = db.prepare(
