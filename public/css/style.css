@@ -441,37 +441,48 @@ a:hover {
   margin-bottom: 26px;
 }
 
-/* ---------- Auth tabs (Buyer/Seller + Admin) ---------- */
+/* ---------- Auth login choices (Buyer / Seller / Admin) ---------- */
 
-.auth-tabs {
+.login-choices {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 22px;
 }
 
-.auth-tab {
-  padding: 11px 14px;
+.login-choice {
+  padding: 12px 14px;
   border: 1.5px solid #d8e2dc;
   border-radius: var(--radius-sm);
   background: var(--green-50);
   color: var(--muted);
   font-weight: 700;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-family: var(--font);
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.auth-tab:hover {
+.login-choice:hover {
   border-color: var(--green-500);
   color: var(--green-800);
 }
 
-.auth-tab.active {
+.login-choice.active {
   border-color: var(--green-600);
   background: var(--green-100);
   color: var(--green-800);
+  box-shadow: 0 0 0 3px rgba(60, 155, 70, 0.18);
+}
+
+.login-choice-admin {
+  grid-column: 1 / -1;
+}
+
+.auth-panel-heading {
+  font-size: 1.1rem;
+  color: var(--green-800);
+  margin-bottom: 18px;
 }
 
 .auth-panel .setup-note {
@@ -1485,6 +1496,14 @@ select.input {
 @media (max-width: 520px) {
   .role-row {
     grid-template-columns: 1fr;
+  }
+
+  .login-choices {
+    grid-template-columns: 1fr;
+  }
+
+  .login-choice-admin {
+    grid-column: auto;
   }
 
   .role-grid {

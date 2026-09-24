@@ -39,10 +39,11 @@
   /* ---------- Login ---------- */
 
   global.LoginValidation = {
-    validate: function () {
+    validate: function (scope) {
+      var root = scope || document;
       var valid = true;
-      var email = document.getElementById('email');
-      var password = document.getElementById('password');
+      var email = root.querySelector('input[name="email"]');
+      var password = root.querySelector('input[name="password"]');
 
       if (!email || !password) {
         return true;

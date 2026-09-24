@@ -4,7 +4,7 @@
   <aside class="auth-side">
     <div class="brand-mark">🌱</div>
     <h2>Welcome back to your garden.</h2>
-    <p>Sign in to SANDRONMART to continue shopping for plants, seeds, and tools &mdash; or to manage your store as a farmer.</p>
+    <p>Sign in to SANDRONMART to continue shopping for plants, seeds, and tools &mdash; or to manage your store as a seller.</p>
     <div class="points">
       <div class="point"><span>✓</span> Discover fresh plants &amp; seeds</div>
       <div class="point"><span>✓</span> Sell your own greenery</div>
@@ -24,14 +24,16 @@
         <div class="alert alert-error"><%= errorMessage %></div>
       <% } %>
 
-      <div class="auth-tabs" role="tablist">
-        <button type="button" class="auth-tab <%= openForm === 'admin' ? '' : 'active' %>"
-                data-target="panel-user" role="tab">Buyer / Farmer Login</button>
-        <button type="button" class="auth-tab <%= openForm === 'admin' ? 'active' : '' %>"
-                data-target="panel-admin" role="tab">Admin Login</button>
+      <div class="login-choices" role="tablist">
+        <button type="button" class="login-choice <%= openForm === 'admin' ? '' : 'active' %>"
+                data-target="panel-buyer" role="tab" aria-selected="<%= openForm === 'admin' ? 'false' : 'true' %>">Buyer</button>
+        <button type="button" class="login-choice" data-target="panel-seller" role="tab" aria-selected="false">Seller</button>
+        <button type="button" class="login-choice login-choice-admin <%= openForm === 'admin' ? 'active' : '' %>"
+                data-target="panel-admin" role="tab" aria-selected="<%= openForm === 'admin' ? 'true' : 'false' %>">Admin Login</button>
       </div>
 
-      <div class="auth-panel" id="panel-user" style="<%= openForm === 'admin' ? 'display:none' : '' %>">
+      <div class="auth-panel" id="panel-buyer" style="<%= openForm === 'admin' ? 'display:none' : '' %>">
+        <h2 class="auth-panel-heading">Buyer Login</h2>
         <form method="post" action="/login" novalidate>
           <div class="field">
             <label for="email">Email <span class="req">*</span></label>
@@ -56,7 +58,46 @@
             <a href="#">Forgot Password?</a>
           </div>
 
-          <button class="btn btn-primary btn-block" type="submit">Login</button>
+          <button class="btn btn-primary btn-block" type="submit">Login as Buyer</button>
+        </form>
+
+        <p class="form-hint pt-12 center">
+          Don't have an account?
+          <a href="/register">Create Account</a>
+        </p>
+
+        <p class="form-hint center">
+          <a href="/">&larr; Back to Home</a>
+        </p>
+      </div>
+
+      <div class="auth-panel" id="panel-seller" style="display:none">
+        <h2 class="auth-panel-heading">Seller Login</h2>
+        <form method="post" action="/login" novalidate>
+          <div class="field">
+            <label for="sellerEmail">Email <span class="req">*</span></label>
+            <input class="input <%= errors && errors.email ? 'invalid' : '' %>" type="email"
+                   id="sellerEmail" name="email" value="<%= form.email || '' %>"
+                   placeholder="you@example.com">
+            <% if (errors && errors.email) { %>
+              <span class="field-error"><%= errors.email[0] %></span>
+            <% } %>
+          </div>
+
+          <div class="field">
+            <label for="sellerPassword">Password <span class="req">*</span></label>
+            <input class="input <%= errors && errors.password ? 'invalid' : '' %>" type="password"
+                   id="sellerPassword" name="password" placeholder="Enter your password">
+            <% if (errors && errors.password) { %>
+              <span class="field-error"><%= errors.password[0] %></span>
+            <% } %>
+          </div>
+
+          <div class="field form-hint">
+            <a href="#">Forgot Password?</a>
+          </div>
+
+          <button class="btn btn-primary btn-block" type="submit">Login as Seller</button>
         </form>
 
         <p class="form-hint pt-12 center">
@@ -70,6 +111,7 @@
       </div>
 
       <div class="auth-panel" id="panel-admin" style="<%= openForm === 'admin' ? '' : 'display:none' %>">
+        <h2 class="auth-panel-heading">Admin Login</h2>
         <% if (adminConfigured) { %>
           <form method="post" action="/login" novalidate>
             <div class="field">
@@ -107,25 +149,26 @@
 <script src="/js/validation.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    var form = document.querySelector('form');
-    if (form) {
+    document.querySelectorAll('form[action="/login"]').forEach(function (form) {
       form.addEventListener('submit', function (e) {
-        if (!LoginValidation.validate()) {
+        if (!LoginValidation.validate(form)) {
           e.preventDefault();
         }
       });
-    }
+    });
 
-    document.querySelectorAll('.auth-tabs .auth-tab').forEach(function (tab) {
-      tab.addEventListener('click', function () {
-        document.querySelectorAll('.auth-tabs .auth-tab').forEach(function (t) {
-          t.classList.remove('active');
+    document.querySelectorAll('.login-choices .login-choice').forEach(function (choice) {
+      choice.addEventListener('click', function () {
+        document.querySelectorAll('.login-choices .login-choice').forEach(function (c) {
+          c.classList.remove('active');
+          c.setAttribute('aria-selected', 'false');
         });
-        tab.classList.add('active');
+        choice.classList.add('active');
+        choice.setAttribute('aria-selected', 'true');
         document.querySelectorAll('.auth-panel').forEach(function (panel) {
           panel.style.display = 'none';
         });
-        var target = document.getElementById(tab.getAttribute('data-target'));
+        var target = document.getElementById(choice.getAttribute('data-target'));
         if (target) {
           target.style.display = 'block';
         }
