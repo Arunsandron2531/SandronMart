@@ -167,17 +167,25 @@ db.exec('CREATE INDEX IF NOT EXISTS idx_orders_buyer_id ON orders(buyer_id);');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS order_items (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id   INTEGER NOT NULL REFERENCES orders(id),
-    product_id INTEGER REFERENCES products(id),
-    seller_id  INTEGER REFERENCES users(id),
-    name       TEXT    NOT NULL,
-    price      REAL    NOT NULL,
-    quantity   INTEGER NOT NULL CHECK (quantity >= 1),
-    image_url  TEXT,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id    INTEGER NOT NULL REFERENCES orders(id),
+    product_id  INTEGER REFERENCES products(id),
+    seller_id   INTEGER REFERENCES users(id),
+    seller_name TEXT,
+    name        TEXT    NOT NULL,
+    price       REAL    NOT NULL,
+    quantity    INTEGER NOT NULL CHECK (quantity >= 1),
+    image_url   TEXT,
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+// Databases created before the seller_name snapshot existed lack the column on
+// order_items. Add it in place so every order line records the farmer's name.
+const orderItemColumns = db.prepare('PRAGMA table_info(order_items)').all().map((col) => col.name);
+if (!orderItemColumns.includes('seller_name')) {
+  db.exec('ALTER TABLE order_items ADD COLUMN seller_name TEXT');
+}
 
 db.exec('CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);');
 db.exec('CREATE INDEX IF NOT EXISTS idx_order_items_seller_id ON order_items(seller_id);');

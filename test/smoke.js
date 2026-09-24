@@ -1444,6 +1444,33 @@ async function run() {
 
   const orderItemRow = db.prepare('SELECT * FROM order_items WHERE order_id = ?').get(orderId);
   assert(orderItemRow && orderItemRow.quantity === 2 && Number(orderItemRow.price) === 39.99 && orderItemRow.seller_id === samId, 'order item quantity/price/seller stored');
+  assert(orderItemRow && orderItemRow.seller_name === 'Sam Seller', 'order item snapshots the farmer (seller) name', orderItemRow && orderItemRow.seller_name);
+
+  /* ===== Complete farmer -> buyer -> admin data flow (SQL level) ===== */
+  const flowRow = db.prepare(
+    `SELECT oi.product_id AS product_id, oi.seller_id AS farmer_id, o.buyer_id AS buyer_id,
+            COALESCE(oi.seller_name, '') AS farmer_name, o.full_name AS buyer_name,
+            oi.name AS product_name, oi.quantity AS quantity, oi.price AS price,
+            o.total AS total_amount, o.status AS order_status, o.payment_status AS payment_status,
+            o.created_at AS created_at, o.updated_at AS updated_at
+     FROM order_items oi JOIN orders o ON o.id = oi.order_id
+     WHERE oi.order_id = ? LIMIT 1`
+  ).get(orderId);
+  assert(flowRow, 'flow row resolves from orders + order_items');
+  assert(flowRow && flowRow.product_id === idMonstera && flowRow.farmer_id === samId && flowRow.buyer_id === janeId, 'one link query yields product, farmer and buyer ids', flowRow && `${flowRow.product_id}/${flowRow.farmer_id}/${flowRow.buyer_id}`);
+  assert(flowRow && flowRow.farmer_name === 'Sam Seller' && flowRow.buyer_name === 'Jane Buyer', 'one link query yields farmer and buyer names', flowRow && `${flowRow.farmer_name}/${flowRow.buyer_name}`);
+  assert(flowRow && flowRow.product_name === 'Monstera Albo' && flowRow.quantity === 2 && Number(flowRow.price) === 39.99, 'one link query yields product, quantity and price', flowRow && `${flowRow.product_name}/${flowRow.quantity}/${flowRow.price}`);
+  assert(flowRow && Number(flowRow.total_amount) === 119.98 && flowRow.order_status === 'DELIVERED' && flowRow.payment_status === 'PENDING', 'one link query yields amount, order status and payment status', flowRow && `${flowRow.total_amount}/${flowRow.order_status}/${flowRow.payment_status}`);
+  assert(flowRow && flowRow.created_at && flowRow.updated_at && flowRow.updated_at >= flowRow.created_at, 'order carries created_at and updated_at');
+
+  /* ===== Buyer listing is driven by the products table ===== */
+  const seededCount = db.prepare('SELECT COUNT(*) AS c FROM products').get().c;
+  r = await buyer.request('POST', '/login', { email: 'jane@example.com', password: 'secret123' });
+  assert(r.status === 302, 'buyer re-logs in for listing check', `status=${r.status}`);
+  r = await buyer.request('GET', '/buyer/products');
+  assert(r.status === 200 && r.text.includes('Monstera Albo'), 'farmer-added product appears in buyer listing from DB', `status=${r.status} products=${seededCount}`);
+  r = await buyer.request('GET', `/buyer/products/${idMonstera}`);
+  assert(r.status === 200 && r.text.includes('Sam Seller'), 'buyer product detail shows the farmer who listed it', `status=${r.status}`);
 
   const monstStock = db.prepare('SELECT stock FROM products WHERE id = ?').get(idMonstera);
   assert(monstStock.stock === 2, 'stock reduced after orders', `stock=${monstStock.stock}`);

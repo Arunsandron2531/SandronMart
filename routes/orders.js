@@ -37,9 +37,10 @@ function cartItems(buyerId) {
   return db.prepare(
     `SELECT c.id AS cart_id, c.quantity,
             p.id AS product_id, p.name, p.category, p.price, p.image_url, p.stock,
-            p.seller_id
+            p.seller_id, u.full_name AS seller_name
      FROM cart_items c
      JOIN products p ON p.id = c.product_id
+     JOIN users u ON u.id = p.seller_id
      WHERE c.buyer_id = ?
      ORDER BY c.created_at DESC, c.id DESC`
   ).all(buyerId);
@@ -225,14 +226,15 @@ router.post('/buyer/checkout', requireRole('BUYER'), (req, res) => {
     const orderId = orderInfo.lastInsertRowid;
 
     const insertItem = db.prepare(
-      `INSERT INTO order_items (order_id, product_id, seller_id, name, price, quantity, image_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO order_items (order_id, product_id, seller_id, seller_name, name, price, quantity, image_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     );
     const reduceStock = db.prepare('UPDATE products SET stock = stock - ? WHERE id = ?');
 
     for (const item of freshItems) {
       insertItem.run(
-        orderId, item.product_id, item.seller_id, item.name, Number(item.price), item.quantity, item.image_url
+        orderId, item.product_id, item.seller_id, item.seller_name, item.name,
+        Number(item.price), item.quantity, item.image_url
       );
       reduceStock.run(item.quantity, item.product_id);
     }

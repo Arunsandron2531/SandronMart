@@ -151,7 +151,7 @@ router.get('/admin/orders/:id', (req, res) => {
 
   const items = db.prepare(
     `SELECT oi.name, oi.price, oi.quantity, oi.image_url,
-            u.full_name AS seller_name
+            COALESCE(oi.seller_name, u.full_name) AS seller_name
      FROM order_items oi
      JOIN users u ON u.id = oi.seller_id
      WHERE oi.order_id = ?
