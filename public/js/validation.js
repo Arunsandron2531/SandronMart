@@ -83,7 +83,7 @@
       var password = document.getElementById('password');
       var confirm = document.getElementById('confirmPassword');
 
-      var radioCards = document.querySelectorAll('.radio-card');
+      var radioCards = document.querySelectorAll('.role-card');
       radioCards.forEach(function (card) {
         card.addEventListener('click', function () {
           var radio = card.querySelector('input');

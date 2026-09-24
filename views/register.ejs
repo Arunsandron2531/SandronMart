@@ -4,9 +4,9 @@
   <aside class="auth-side">
     <div class="brand-mark">🌱</div>
     <h2>Join SANDRONMART.</h2>
-    <p>Create your account as a Buyer to browse plants and gardening supplies, or as a Seller to open your own green store.</p>
+    <p>Create your account as a Buyer to browse plants and gardening supplies, or as a Farmer to open your own green store.</p>
     <div class="points">
-      <div class="point"><span>✓</span> Buyer &amp; Seller accounts</div>
+      <div class="point"><span>✓</span> Buyer &amp; Farmer accounts</div>
       <div class="point"><span>✓</span> Secure password hashing</div>
       <div class="point"><span>✓</span> Fast, one-step signup</div>
     </div>
@@ -72,16 +72,20 @@
 
         <div class="field">
           <label>I want to join as <span class="req">*</span></label>
-          <div class="radio-row">
-            <label class="radio-card <%= form.role === 'BUYER' ? 'selected' : '' %>" id="card-buyer">
+          <div class="role-row">
+            <label class="role-card <%= form.role === 'BUYER' ? 'selected' : '' %>" id="card-buyer">
               <input type="radio" name="role" value="BUYER" <%= form.role === 'BUYER' ? 'checked' : '' %>>
-              <span class="radio-label">Buyer</span>
-              <span class="radio-desc">Shop for plants</span>
+              <span class="role-icon">🛍️</span>
+              <span class="role-title">Buyer</span>
+              <span class="role-desc">Shop for plants, seeds &amp; gardening supplies</span>
+              <span class="role-btn">Join as Buyer</span>
             </label>
-            <label class="radio-card <%= form.role === 'SELLER' ? 'selected' : '' %>" id="card-seller">
+            <label class="role-card <%= form.role === 'SELLER' ? 'selected' : '' %>" id="card-farmer">
               <input type="radio" name="role" value="SELLER" <%= form.role === 'SELLER' ? 'checked' : '' %>>
-              <span class="radio-label">Seller</span>
-              <span class="radio-desc">Sell your plants</span>
+              <span class="role-icon">🧑‍🌾</span>
+              <span class="role-title">Farmer</span>
+              <span class="role-desc">Sell your plants &amp; crops to shoppers</span>
+              <span class="role-btn">Join as Farmer</span>
             </label>
           </div>
           <% if (errors && errors.role) { %>
