@@ -24,7 +24,41 @@
       <div class="admin-stat-label">Total Orders</div>
       <div class="admin-stat-value" id="admin-stat-orders"><%= stats.totalOrders %></div>
     </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Delivered</div>
+      <div class="admin-stat-value" id="admin-stat-delivered"><%= stats.deliveredOrders %></div>
+    </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Pending</div>
+      <div class="admin-stat-value" id="admin-stat-pending"><%= stats.pendingOrders %></div>
+    </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Cancelled</div>
+      <div class="admin-stat-value" id="admin-stat-cancelled"><%= stats.cancelledOrders %></div>
+    </div>
   </section>
+
+  <% if (stats.totalOrders > 0) { %>
+    <section class="section-block">
+      <div class="page-head">
+        <div>
+          <h2>Order Status Overview</h2>
+          <p class="muted">Live distribution of all orders by status.</p>
+        </div>
+      </div>
+      <div class="chart-card">
+        <% chart.forEach(function (entry) { %>
+          <div class="chart-row">
+            <div class="chart-label"><%= entry.label %></div>
+            <div class="chart-bar-track">
+              <div class="chart-bar chart-bar-<%= entry.status.toLowerCase() %>" style="width:<%= entry.percent %>%"></div>
+            </div>
+            <div class="chart-value"><%= entry.count %></div>
+          </div>
+        <% }) %>
+      </div>
+    </section>
+  <% } %>
 
   <section class="dash-grid">
     <div class="dash-card action-card">

@@ -1,0 +1,78 @@
+<%- include('../partials/header', { title: order.order_number }) %>
+
+<div class="container">
+  <div class="page-head">
+    <div>
+      <h1>Order <span class="muted"><%= order.order_number %></span></h1>
+      <p class="muted">Full order details across all sellers.</p>
+    </div>
+    <a class="btn btn-outline btn-sm" href="/admin/orders">&larr; All Orders</a>
+  </div>
+
+  <section class="admin-stats">
+    <div class="admin-stat">
+      <div class="admin-stat-label">Order Status</div>
+      <div class="admin-stat-value"><span class="status-badge status-<%= order.status.toLowerCase() %>"><%= order.statusLabel %></span></div>
+    </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Buyer</div>
+      <div class="admin-stat-value stat-name"><%= order.buyer_name %></div>
+      <div class="muted"><%= order.buyer_email %></div>
+    </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Total</div>
+      <div class="admin-stat-value"><%= formatINR(order.total) %></div>
+    </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Placed</div>
+      <div class="admin-stat-value stat-name"><%= order.orderDateLabel %></div>
+    </div>
+  </section>
+
+  <section class="section-block">
+    <div class="page-head">
+      <div>
+        <h2>Ordered Products</h2>
+        <p class="muted">Products, quantities, prices, and the sellers fulfilling them.</p>
+      </div>
+    </div>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Seller</th>
+            <th>Quantity</th>
+            <th>Unit Price</th>
+            <th>Line Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% items.forEach(function (item) { %>
+            <tr>
+              <td><strong><%= item.name %></strong></td>
+              <td><%= item.seller_name %></td>
+              <td><%= item.quantity %></td>
+              <td><%= formatINR(item.price) %></td>
+              <td><strong><%= formatINR(item.price * item.quantity) %></strong></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section-block">
+    <div class="section-title" style="margin-bottom:16px;">Delivery Address</div>
+    <div class="order-summary-card" style="max-width:520px;">
+      <strong><%= order.full_name %></strong>
+      <div><%= order.house_number %>, <%= order.street %></div>
+      <% if (order.landmark) { %><div>Near <%= order.landmark %></div><% } %>
+      <div><%= order.city %><% if (order.district) { %>, <%= order.district %><% } %></div>
+      <div><%= order.state %> - <%= order.pincode %></div>
+      <div class="muted">Mobile: <%= order.phone %></div>
+    </div>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

@@ -7,6 +7,37 @@
     <span class="user-badge on-dark">SELLER</span>
   </section>
 
+  <section class="admin-stats">
+    <div class="admin-stat">
+      <div class="admin-stat-label">Total Orders</div>
+      <div class="admin-stat-value" id="seller-stat-total"><%= stats.totalOrders %></div>
+    </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Pending</div>
+      <div class="admin-stat-value" id="seller-stat-pending"><%= stats.statusCounts.PENDING %></div>
+    </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Confirmed</div>
+      <div class="admin-stat-value" id="seller-stat-confirmed"><%= stats.statusCounts.CONFIRMED %></div>
+    </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Shipped</div>
+      <div class="admin-stat-value" id="seller-stat-shipped"><%= stats.statusCounts.SHIPPED %></div>
+    </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Delivered</div>
+      <div class="admin-stat-value" id="seller-stat-delivered"><%= stats.statusCounts.DELIVERED %></div>
+    </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Cancelled</div>
+      <div class="admin-stat-value" id="seller-stat-cancelled"><%= stats.statusCounts.CANCELLED %></div>
+    </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Total Products Sold</div>
+      <div class="admin-stat-value" id="seller-stat-sold"><%= stats.unitsSold %></div>
+    </div>
+  </section>
+
   <section class="dash-grid">
     <div class="dash-card action-card">
       <div class="card-icon">🌱</div>

@@ -6,24 +6,20 @@ const MONTHS_LONG = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-const STATUS_FLOW = ['PLACED', 'CONFIRMED', 'PACKED', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+const STATUS_FLOW = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED'];
 
 const STATUS_LABELS = {
-  PLACED: 'Order Placed',
+  PENDING: 'Pending',
   CONFIRMED: 'Order Confirmed',
-  PACKED: 'Packed',
   SHIPPED: 'Shipped',
-  OUT_FOR_DELIVERY: 'Out for Delivery',
   DELIVERED: 'Delivered',
   CANCELLED: 'Cancelled',
 };
 
 const NEXT_STATUS = {
-  PLACED: 'CONFIRMED',
-  CONFIRMED: 'PACKED',
-  PACKED: 'SHIPPED',
-  SHIPPED: 'OUT_FOR_DELIVERY',
-  OUT_FOR_DELIVERY: 'DELIVERED',
+  PENDING: 'CONFIRMED',
+  CONFIRMED: 'SHIPPED',
+  SHIPPED: 'DELIVERED',
 };
 
 function toISODate(date) {
@@ -110,14 +106,14 @@ function buildTimeline(order, events) {
   });
 
   if (order.status === 'CANCELLED') {
-    const placed = byStatus.PLACED;
+    const pending = byStatus.PENDING;
     const cancelled = byStatus.CANCELLED;
     return [
       {
-        status: 'PLACED',
-        label: statusLabel('PLACED'),
+        status: 'PENDING',
+        label: statusLabel('PENDING'),
         reached: true,
-        at: placed ? formatDateTime(placed.created_at) : formatDateTime(order.created_at),
+        at: pending ? formatDateTime(pending.created_at) : formatDateTime(order.created_at),
       },
       {
         status: 'CANCELLED',
@@ -154,11 +150,7 @@ function expectedLabel(status, order) {
   switch (status) {
     case 'CONFIRMED':
       return `Expected: ${formatOrderDate(order.created_at)}`;
-    case 'PACKED':
-      return `Expected: ${formatDayMonth(order.delivery_start_date)}`;
     case 'SHIPPED':
-      return `Expected: ${formatDayMonth(order.delivery_start_date)}`;
-    case 'OUT_FOR_DELIVERY':
       return `Expected: ${formatDayMonth(order.delivery_start_date)}`;
     case 'DELIVERED':
       return `Expected: ${formatDateRange(order.delivery_start_date, order.delivery_end_date)}`;

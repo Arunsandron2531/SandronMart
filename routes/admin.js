@@ -26,6 +26,31 @@ router.get('/admin/dashboard', (req, res) => {
     totalOrders: db.prepare('SELECT COUNT(*) AS c FROM orders').get().c,
   };
 
+  const statusRows = db.prepare(
+    'SELECT status, COUNT(*) AS c FROM orders GROUP BY status'
+  ).all();
+  const statusCounts = { PENDING: 0, CONFIRMED: 0, SHIPPED: 0, DELIVERED: 0, CANCELLED: 0 };
+  statusRows.forEach((row) => {
+    statusCounts[row.status] = row.c;
+  });
+  stats.statusCounts = statusCounts;
+  stats.deliveredOrders = statusCounts.DELIVERED;
+  stats.pendingOrders = statusCounts.PENDING;
+  stats.cancelledOrders = statusCounts.CANCELLED;
+
+  const totalStatused = statusRows.reduce((sum, row) => sum + row.c, 0);
+  const chart = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED']
+    .map((status) => {
+      const count = statusCounts[status];
+      return {
+        status,
+        label: statusLabel(status),
+        count,
+        percent: totalStatused > 0 ? Math.round((count / totalStatused) * 100) : 0,
+      };
+    })
+    .filter((entry) => entry.count > 0 || true);
+
   const recentOrders = decorateOrders(
     db.prepare(
       `SELECT o.id, o.order_number, o.total, o.payment_method, o.status, o.created_at,
@@ -41,6 +66,7 @@ router.get('/admin/dashboard', (req, res) => {
     title: 'Admin Dashboard',
     user: { name: req.session.name, email: req.session.email },
     stats,
+    chart,
     recentOrders,
   });
 });
@@ -107,6 +133,40 @@ router.get('/admin/orders', (req, res) => {
     title: 'All Orders',
     user: { name: req.session.name, email: req.session.email },
     orders,
+  });
+});
+
+router.get('/admin/orders/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const order = db.prepare(
+    `SELECT o.*, u.full_name AS buyer_name, u.email AS buyer_email
+     FROM orders o
+     JOIN users u ON u.id = o.buyer_id
+     WHERE o.id = ?`
+  ).get(id);
+
+  if (!order) {
+    return res.status(404).render('404', { title: 'Not Found' });
+  }
+
+  const items = db.prepare(
+    `SELECT oi.name, oi.price, oi.quantity, oi.image_url,
+            u.full_name AS seller_name
+     FROM order_items oi
+     JOIN users u ON u.id = oi.seller_id
+     WHERE oi.order_id = ?
+     ORDER BY oi.id ASC`
+  ).all(id);
+
+  res.render('admin/order-details', {
+    title: `Order ${order.order_number}`,
+    user: { name: req.session.name, email: req.session.email },
+    order: {
+      ...order,
+      orderDateLabel: formatOrderDate(order.created_at),
+      statusLabel: statusLabel(order.status),
+    },
+    items,
   });
 });
 

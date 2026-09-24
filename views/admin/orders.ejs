@@ -26,6 +26,7 @@
             <th>Payment</th>
             <th>Total</th>
             <th>Status</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -37,6 +38,7 @@
               <td><%= order.payment_method === 'COD' ? 'Cash on Delivery' : (order.payment_method === 'UPI' ? 'UPI' : 'Card') %></td>
               <td><%= formatINR(order.total) %></td>
               <td><span class="status-badge status-<%= order.status.toLowerCase() %>"><%= order.statusLabel %></span></td>
+              <td><a class="btn btn-outline btn-sm" href="/admin/orders/<%= order.id %>">View</a></td>
             </tr>
           <% }) %>
         </tbody>

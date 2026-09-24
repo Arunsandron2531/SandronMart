@@ -1274,7 +1274,7 @@ async function run() {
   /* --- Order Tracking --- */
   r = await buyer.request('GET', `/buyer/orders/${orderId}/track`);
   assert(r.status === 200 && r.text.includes('Track Order'), 'order tracking page renders', `status=${r.status}`);
-  assert(r.text.includes('Order Placed'), 'tracking shows placed step');
+  assert(r.text.includes('Pending'), 'tracking shows pending step');
   assert(r.text.includes('Order Confirmed') && r.text.includes('Expected:'), 'tracking shows upcoming statuses with expected dates');
   assert(/Expected: \d+ \w+/.test(r.text), 'tracking shows expected delivery dates');
   assert(r.text.includes(formatDateRange(checkoutWindow.start, checkoutWindow.end)), 'tracking preserves the original delivery window', formatDateRange(checkoutWindow.start, checkoutWindow.end));
@@ -1295,7 +1295,7 @@ async function run() {
   r = await seller.request('POST', `/seller/orders/${orderId}/status`, { status: 'SHIPPED' });
   assert(r.status === 302 && (r.location || '').includes('error=1'), 'skipping a status step rejected', `status=${r.status} loc=${r.location}`);
 
-  const statusChain = ['CONFIRMED', 'PACKED', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+  const statusChain = ['CONFIRMED', 'SHIPPED', 'DELIVERED'];
   for (const next of statusChain) {
     r = await seller.request('POST', `/seller/orders/${orderId}/status`, { status: next });
     assert(r.status === 302 && (r.location || '').includes('updated=1'), `seller moves order to ${next}`, `status=${r.status} loc=${r.location}`);
@@ -1451,7 +1451,7 @@ async function run() {
   assert(roseStock.stock === 3, 'rose stock reduced after orders', `stock=${roseStock.stock}`);
 
   const statusEvents = db.prepare('SELECT COUNT(*) AS c FROM order_status_events WHERE order_id = ?').get(orderId);
-  assert(statusEvents.c === 6, 'status history recorded for each step', `count=${statusEvents.c}`);
+  assert(statusEvents.c === 4, 'status history recorded for each step', `count=${statusEvents.c}`);
   const cancelledRow = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderIdCard);
   assert(cancelledRow && cancelledRow.status === 'CANCELLED', 'cancelled order persisted', cancelledRow && cancelledRow.status);
   const upiRow = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderIdUpI);
@@ -1473,6 +1473,9 @@ async function run() {
   assert(orphanOrderItems.c === 0, 'all order items reference a valid order');
 
   /* ===== Admin data views reflect the database ===== */
+  const statusTotals = {};
+  db.prepare('SELECT status, COUNT(*) AS c FROM orders GROUP BY status').all()
+    .forEach((row) => { statusTotals[row.status] = row.c; });
   const dbTotals = {
     products: db.prepare('SELECT COUNT(*) AS c FROM products').get().c,
     buyers: db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'BUYER'").get().c,
@@ -1484,6 +1487,13 @@ async function run() {
     const m = r.text.match(new RegExp('id="admin-stat-' + key + '">(\\d+)<'));
     assert(m && Number(m[1]) === dbTotals[key], 'admin dashboard shows correct ' + key + ' total', m ? `shown=${m[1]} db=${dbTotals[key]}` : 'stat not found');
   }
+  for (const status of ['PENDING', 'DELIVERED', 'CANCELLED']) {
+    const key = status === 'PENDING' ? 'pending' : (status === 'DELIVERED' ? 'delivered' : 'cancelled');
+    const m = r.text.match(new RegExp('id="admin-stat-' + key + '">(\\d+)<'));
+    const expected = statusTotals[status] || 0;
+    assert(m && Number(m[1]) === expected, 'admin dashboard shows correct ' + key + ' order count', m ? `shown=${m[1]} db=${expected}` : 'stat not found');
+  }
+  assert(r.text.includes('Order Status Overview') && r.text.includes('chart-bar'), 'admin dashboard renders the order status chart');
   const recentOrderNumber = db.prepare('SELECT order_number FROM orders ORDER BY id DESC LIMIT 1').get().order_number;
   assert(r.text.includes(recentOrderNumber), 'admin dashboard recent orders lists latest order', recentOrderNumber);
 
@@ -1493,6 +1503,13 @@ async function run() {
     assert(r.text.includes(number), 'admin orders page lists every order', number);
   }
 
+  r = await admin.request('GET', `/admin/orders/${orderId}`);
+  assert(r.status === 200 && r.text.includes('Monstera Albo') && r.text.includes('\u20B9'), 'admin order detail page shows ordered products', `status=${r.status}`);
+  assert(r.text.includes('Jane Buyer') && r.text.includes('jane@example.com'), 'admin order detail page shows buyer');
+  assert(r.text.includes('Sam Seller'), 'admin order detail page shows the fulfilling seller');
+  r = await admin.request('GET', '/admin/orders/999999');
+  assert(r.status === 404, 'admin order detail 404s for unknown order', `status=${r.status}`);
+
   r = await admin.request('GET', '/admin/products');
   assert(r.text.includes('Monstera Albo') && r.text.includes('Tomato Plant'), 'admin products page lists products from all sellers');
 
@@ -1501,6 +1518,55 @@ async function run() {
 
   r = await admin.request('GET', '/admin/sellers');
   assert(r.text.includes('Sellers') && r.text.includes('Sam Seller') && r.text.includes('Otto Seller'), 'admin sellers page lists seller accounts');
+
+  /* ===== Seller dashboard stats reflect the database ===== */
+  const samSellerStats = {
+    totalOrders: db.prepare(
+      'SELECT COUNT(DISTINCT o.id) AS c FROM orders o JOIN order_items oi ON oi.order_id = o.id WHERE oi.seller_id = ?'
+    ).get(samId).c,
+  };
+  db.prepare(
+    'SELECT o.status AS status, COUNT(DISTINCT o.id) AS c FROM orders o JOIN order_items oi ON oi.order_id = o.id WHERE oi.seller_id = ? GROUP BY o.status'
+  ).all(samId).forEach((row) => { samSellerStats[row.status] = row.c; });
+  const samUnitsSold = db.prepare(
+    "SELECT COALESCE(SUM(oi.quantity), 0) AS s FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE oi.seller_id = ? AND o.status != 'CANCELLED'"
+  ).get(samId).s;
+  r = await seller.request('GET', '/seller/dashboard');
+  assert(r.status === 200, 'seller dashboard renders with stats', `status=${r.status}`);
+  for (const key of ['total', 'pending', 'confirmed', 'shipped', 'delivered', 'cancelled']) {
+    const m = r.text.match(new RegExp('id="seller-stat-' + key + '">(\\d+)<'));
+    const expected = key === 'total' ? samSellerStats.totalOrders : (samSellerStats[key.toUpperCase()] || 0);
+    assert(m && Number(m[1]) === expected, `seller dashboard shows correct ${key} stat`, m ? `shown=${m[1]} db=${expected}` : 'stat not found');
+  }
+  const soldM = r.text.match(/id="seller-stat-sold">(\d+)</);
+  assert(soldM && Number(soldM[1]) === samUnitsSold, 'seller dashboard shows correct total products sold', soldM ? `shown=${soldM[1]} db=${samUnitsSold}` : 'stat not found');
+  r = await sellerB.request('GET', '/seller/dashboard');
+  assert(r.status === 200 && r.text.includes('Total Orders'), 'second seller dashboard renders too', `status=${r.status}`);
+
+  /* ===== Buyer dashboard stats reflect the database ===== */
+  const janeDashboard = {
+    totalOrders: db.prepare('SELECT COUNT(*) AS c FROM orders WHERE buyer_id = ?').get(janeId).c,
+  };
+  db.prepare('SELECT o.status AS status, COUNT(*) AS c FROM orders o WHERE o.buyer_id = ? GROUP BY o.status')
+    .all(janeId).forEach((row) => { janeDashboard[row.status] = row.c; });
+  const janeItemsInOrders = db.prepare(
+    "SELECT COALESCE(SUM(oi.quantity), 0) AS s FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE o.buyer_id = ?"
+  ).get(janeId).s;
+  r = await buyer.request('POST', '/login', { email: 'jane@example.com', password: 'secret123' });
+  assert(r.status === 302 && r.location === '/buyer/dashboard', 'buyer re-logs in for dashboard stats', `status=${r.status} loc=${r.location}`);
+  r = await buyer.request('GET', '/buyer/dashboard');
+  assert(r.status === 200, 'buyer dashboard renders with stats', `status=${r.status}`);
+  for (const key of ['total', 'items']) {
+    const m = r.text.match(new RegExp('id="buyer-stat-' + key + '">(\\d+)<'));
+    const expected = key === 'total' ? janeDashboard.totalOrders : janeItemsInOrders;
+    assert(m && Number(m[1]) === expected, `buyer dashboard shows correct ${key} stat`, m ? `shown=${m[1]} db=${expected}` : 'stat not found');
+  }
+  for (const key of ['pending', 'delivered', 'cancelled']) {
+    const m = r.text.match(new RegExp('id="buyer-stat-' + key + '">(\\d+)<'));
+    const expected = janeDashboard[key.toUpperCase()] || 0;
+    assert(m && Number(m[1]) === expected, `buyer dashboard shows correct ${key} stat`, m ? `shown=${m[1]} db=${expected}` : 'stat not found');
+  }
+  assert(r.text.includes('Recent Orders') && r.text.includes('Monstera Albo') && r.text.includes('\u20B939.99'), 'buyer dashboard shows order history with products and prices');
 
   db.close();
   require('../config/db').close();

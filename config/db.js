@@ -157,7 +157,7 @@ db.exec(`
     delivery_time_slot  TEXT    NOT NULL,
     payment_method      TEXT    NOT NULL,
     payment_status      TEXT    NOT NULL DEFAULT 'PENDING',
-    status              TEXT    NOT NULL DEFAULT 'PLACED',
+    status              TEXT    NOT NULL DEFAULT 'PENDING',
     created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at          TEXT    NOT NULL DEFAULT (datetime('now'))
   );

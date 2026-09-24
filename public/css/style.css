@@ -611,6 +611,66 @@ a:hover {
   color: var(--green-800);
 }
 
+.admin-stat-value.stat-name {
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+
+.chart-card {
+  background: var(--white);
+  border: 1px solid var(--green-100);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+  display: grid;
+  gap: 14px;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 56px;
+  align-items: center;
+  gap: 14px;
+}
+
+.chart-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.chart-bar-track {
+  background: var(--green-50);
+  border-radius: 999px;
+  height: 18px;
+  overflow: hidden;
+}
+
+.chart-bar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.chart-bar-pending { background: #0d47a1; }
+.chart-bar-confirmed { background: #00695c; }
+.chart-bar-shipped { background: #e65100; }
+.chart-bar-delivered { background: #1f6e37; }
+.chart-bar-cancelled { background: var(--danger); }
+
+.chart-value {
+  font-weight: 800;
+  color: var(--green-800);
+  text-align: right;
+}
+
+@media (max-width: 560px) {
+  .chart-row {
+    grid-template-columns: 100px 1fr 40px;
+    gap: 8px;
+  }
+}
+
 .section-block {
   margin-bottom: 48px;
 }
@@ -1715,11 +1775,9 @@ select.input {
   white-space: nowrap;
 }
 
-.status-placed { background: #e3f2fd; color: #0d47a1; }
+.status-pending { background: #e3f2fd; color: #0d47a1; }
 .status-confirmed { background: #e0f2f1; color: #00695c; }
-.status-packed { background: #f3e5f5; color: #6a1b9a; }
 .status-shipped { background: #fff3e0; color: #e65100; }
-.status-out_for_delivery { background: #fff8e1; color: #7a5a00; }
 .status-delivered { background: #e8f7ec; color: #1f6e37; }
 .status-cancelled { background: var(--danger-bg); color: var(--danger); }
 

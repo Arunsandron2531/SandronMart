@@ -27,11 +27,9 @@ module.exports = {
   ],
 
   ORDER_STATUSES: [
-    'PLACED',
+    'PENDING',
     'CONFIRMED',
-    'PACKED',
     'SHIPPED',
-    'OUT_FOR_DELIVERY',
     'DELIVERED',
     'CANCELLED',
   ],

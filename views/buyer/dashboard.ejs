@@ -7,6 +7,92 @@
     <span class="user-badge on-dark">BUYER</span>
   </section>
 
+  <section class="admin-stats">
+    <div class="admin-stat">
+      <div class="admin-stat-label">Total Orders</div>
+      <div class="admin-stat-value" id="buyer-stat-total"><%= stats.totalOrders %></div>
+    </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Items Bought</div>
+      <div class="admin-stat-value" id="buyer-stat-items"><%= stats.itemsInOrders %></div>
+    </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Pending</div>
+      <div class="admin-stat-value" id="buyer-stat-pending"><%= stats.pendingOrders %></div>
+    </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Delivered</div>
+      <div class="admin-stat-value" id="buyer-stat-delivered"><%= stats.deliveredOrders %></div>
+    </div>
+    <div class="admin-stat">
+      <div class="admin-stat-label">Cancelled</div>
+      <div class="admin-stat-value" id="buyer-stat-cancelled"><%= stats.cancelledOrders %></div>
+    </div>
+  </section>
+
+  <% if (recentOrders.length > 0) { %>
+    <section class="section-block">
+      <div class="page-head">
+        <div>
+          <h2>Recent Orders</h2>
+          <p class="muted">Your latest purchases with quantities and prices.</p>
+        </div>
+        <a class="btn btn-outline btn-sm" href="/buyer/orders">View All Orders</a>
+      </div>
+      <div class="order-list">
+        <% recentOrders.forEach(function (order) { %>
+          <div class="order-card">
+            <div class="order-head">
+              <div class="order-id">
+                <span class="muted">Order ID</span>
+                <strong><%= order.order_number %></strong>
+              </div>
+              <div class="order-date">
+                <span class="muted">Order Date</span>
+                <strong><%= order.orderDateLabel %></strong>
+              </div>
+              <span class="status-badge status-<%= order.status.toLowerCase() %>"><%= order.statusLabel %></span>
+            </div>
+            <div class="order-body">
+              <div class="order-products">
+                <% order.items.forEach(function (item) { %>
+                  <div class="order-product">
+                    <div>
+                      <div class="order-product-name"><%= item.name %></div>
+                      <div class="muted"><%= formatINR(item.price) %> &times; <%= item.quantity %> = <%= formatINR(item.price * item.quantity) %></div>
+                    </div>
+                  </div>
+                <% }) %>
+              </div>
+              <div class="order-meta">
+                <div class="order-meta-line">
+                  <span>Order Status</span>
+                  <span><%= order.statusLabel %></span>
+                </div>
+                <div class="order-meta-line">
+                  <span>Products Ordered</span>
+                  <span><%= order.itemCount %></span>
+                </div>
+                <div class="order-meta-line">
+                  <span>Expected Delivery</span>
+                  <span><%= order.deliveryLabel %></span>
+                </div>
+                <div class="order-meta-line">
+                  <span>Total</span>
+                  <strong><%= formatINR(order.total) %></strong>
+                </div>
+              </div>
+            </div>
+            <div class="order-actions">
+              <a class="btn btn-outline btn-sm" href="/buyer/orders/<%= order.id %>">View Details</a>
+              <a class="btn btn-primary btn-sm" href="/buyer/orders/<%= order.id %>/track">Track Order</a>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </section>
+  <% } %>
+
   <section class="dash-grid">
     <div class="dash-card action-card">
       <div class="card-icon">🌱</div>

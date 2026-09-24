@@ -220,7 +220,7 @@ router.post('/buyer/checkout', requireRole('BUYER'), (req, res) => {
       address.landmark || null, address.city, address.district || null, address.state, address.pincode,
       deliveryWindow.start, deliveryWindow.end, timeSlot, paymentMethod,
       paymentMethod === 'COD' ? 'PENDING' : 'PAID',
-      'PLACED'
+      'PENDING'
     );
     const orderId = orderInfo.lastInsertRowid;
 
@@ -253,7 +253,7 @@ router.post('/buyer/checkout', requireRole('BUYER'), (req, res) => {
       );
     }
 
-    db.prepare("INSERT INTO order_status_events (order_id, status) VALUES (?, 'PLACED')").run(orderId);
+    db.prepare("INSERT INTO order_status_events (order_id, status) VALUES (?, 'PENDING')").run(orderId);
     db.prepare('DELETE FROM cart_items WHERE buyer_id = ?').run(buyerId);
 
     return orderId;
@@ -549,7 +549,7 @@ router.get('/seller/orders', requireRole('SELLER'), (req, res) => {
     title: 'Incoming Orders',
     orders,
     messages,
-    statusFlow: ['PLACED', 'CONFIRMED', 'PACKED', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'],
+    statusFlow: ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED'],
     orderStatusLabel: statusLabel,
     nextStatusOf: nextStatus,
   });
